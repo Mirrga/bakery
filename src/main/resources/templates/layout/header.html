@@ -1,0 +1,21 @@
+<header th:fragment="header">
+    <nav class="container">
+        <a href="/" class="logo">LOGO</a>
+        <ul>
+            <li><a href="/">О нас</a></li>
+            <li><a href="/products">Меню</a></li>
+            <li th:if="${#authorization.expression('isAuthenticated()')}">
+                <a href="/orders/my">Мои заказы</a>
+            </li>
+            <li th:if="${#authorization.expression('isAuthenticated()')}">
+                <a href="/cart">Корзина</a>
+            </li>
+            <li th:if="${#authorization.expression('isAnonymous()')}">
+                <a href="/login">Вход</a>
+            </li>
+            <li th:if="${#authorization.expression('isAuthenticated()')}">
+                <a href="/account" sec:authentication="principal.username">Аккаунт</a>
+            </li>
+        </ul>
+    </nav>
+</header>
