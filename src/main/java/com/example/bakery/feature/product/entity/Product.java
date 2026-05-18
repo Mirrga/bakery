@@ -25,7 +25,6 @@ public class Product {
     private BigDecimal price;
 
     private String imageUrl;
-
     // Many-to-One: Много товаров принадлежат одной категории
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)

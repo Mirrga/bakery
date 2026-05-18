@@ -3,14 +3,11 @@ package com.example.bakery.feature.order.entity;
 import com.example.bakery.feature.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "order_items")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,6 +24,7 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(nullable = false)
-    private Double price; // Цена на момент покупки
+    // ИЗМЕНЕНО: Double -> BigDecimal
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal price;
 }

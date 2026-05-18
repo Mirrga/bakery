@@ -1,4 +1,4 @@
-package com.example.bakery.feature.user.entity;
+package com.example.bakery.feature.auth.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;

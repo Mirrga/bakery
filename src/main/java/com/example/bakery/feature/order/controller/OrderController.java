@@ -24,6 +24,24 @@ public class OrderController {
     private final CartService cartService;
 
     /**
+     * Страница оформления заказа (форма с данными доставки)
+     */
+    @GetMapping("/checkout")
+    public String checkoutPage(HttpSession session, Model model) {
+        String sessionId = session.getId();
+        Cart cart = cartService.getCartBySession(sessionId);
+
+        if (cart.getItems() == null || cart.getItems().isEmpty()) {
+            model.addAttribute("error", "Ваша корзина пуста");
+            return "redirect:/cart";
+        }
+
+        model.addAttribute("cart", cart);
+        // Можно добавить форму для ввода адреса/телефона, если нужно
+        return "order/checkout";
+    }
+
+    /**
      * Оформление заказа (POST запрос)
      */
     @PostMapping("/create")
@@ -59,7 +77,7 @@ public class OrderController {
             return "order/view";
         } catch (RuntimeException e) {
             model.addAttribute("error", "Заказ не найден");
-            return "error";
+            return "error"; // Или редирект на страницу ошибок
         }
     }
 
@@ -73,26 +91,23 @@ public class OrderController {
         }
 
         String username = authentication.getName();
-        List<Order> orders = orderService.getUserOrders(username);
+        List<Order> orders = orderService.getAllOrders().stream()
+                .filter(o -> o.getUser().getUsername().equals(username))
+                .toList();
+        
         model.addAttribute("orders", orders);
         return "order/list";
     }
 
     /**
-     * Страница оформления заказа (форма с данными доставки)
+     * Админка: Список всех заказов
      */
-    @GetMapping("/checkout")
-    public String checkoutPage(HttpSession session, Model model) {
-        String sessionId = session.getId();
-        Cart cart = cartService.getCartBySession(sessionId);
-
-        if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            model.addAttribute("error", "Ваша корзина пуста");
-            return "redirect:/cart";
-        }
-
-        model.addAttribute("cart", cart);
-        return "order/checkout";
+    @GetMapping("/admin")
+    public String adminOrders(Model model) {
+        // TODO: Добавить проверку роли ADMIN через @PreAuthorize или вручную
+        List<Order> orders = orderService.getAllOrders();
+        model.addAttribute("orders", orders);
+        return "order/admin";
     }
 
     /**
@@ -109,16 +124,5 @@ public class OrderController {
             redirectAttributes.addFlashAttribute("error", "Ошибка при обновлении статуса: " + e.getMessage());
         }
         return "redirect:/orders/admin";
-    }
-
-    /**
-     * Админка: Список всех заказов
-     */
-    @GetMapping("/admin")
-    public String adminOrders(Model model) {
-        // В реальном проекте здесь нужна проверка роли ADMIN
-        List<Order> orders = orderService.getAllOrders();
-        model.addAttribute("orders", orders);
-        return "order/admin";
     }
 }

@@ -9,5 +9,8 @@ public class CategoryDto {
     private String name;
     private String description;
     private String slug;
-    private List<Long> productIds;
+    
+    // Внимание: Это поле не должно заполняться автоматически из Lazy-коллекции!
+    // Заполняйте его вручную в сервисе только если действительно нужно.
+    private List<Long> productIds; 
 }

@@ -11,12 +11,14 @@ public class ProductDto {
     private String name;
     private String description;
     private BigDecimal price;
-    private Boolean available;
     private String imageUrl;
-    private Integer stockQuantity;
+    
+    // Вместо передачи всего списка объектов Review, передаем только ID или краткую информацию
+    // Или просто количество отзывов, если детали не нужны в списке
     private Long categoryId;
     private String categoryName;
-    private List<Long> ingredientIds;
+    private List<Long> reviewIds; // Или Integer reviewCount;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -3,17 +3,14 @@ package com.example.bakery.feature.order.entity;
 import com.example.bakery.feature.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "orders")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,8 +28,9 @@ public class Order {
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.NEW;
 
-    @Column(nullable = false)
-    private Double totalAmount;
+    // ИЗМЕНЕНО: Double -> BigDecimal
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

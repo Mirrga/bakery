@@ -2,57 +2,156 @@ package com.example.bakery.feature.cart.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller; // <-- ВАЖНО: Используем @Controller, а не @RestController для всего класса
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.example.bakery.feature.cart.dto.CartDto;
 import com.example.bakery.feature.cart.entity.Cart;
 import com.example.bakery.feature.cart.service.CartService;
 
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 
-// Если оставить @RestController, ВСЕ методы будут возвращать JSON/текст.
-// Для混合 (смешанного) контроллера лучше использовать @Controller 
-// и добавлять @ResponseBody только там, где нужен JSON.
-@Controller 
+@Controller
 @RequestMapping("/cart")
 @RequiredArgsConstructor
 public class CartController {
 
     private final CartService cartService;
 
-    // AJAX Endpoint: Добавить товар (возвращает JSON)
+    // --- MVC Endpoints (возвращают HTML страницы) ---
+
+    /**
+     * Страница просмотра корзины
+     */
+    @GetMapping
+    public String showCart(HttpSession session, Model model) {
+        String sessionId = session.getId();
+        // Используем DTO для безопасной передачи данных в шаблон
+        CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+        model.addAttribute("cart", cartDto);
+        return "cart/view";
+    }
+
+    // --- REST/AJAX Endpoints (возвращают JSON) ---
+
+    /**
+     * Добавить товар в корзину (AJAX)
+     */
     @PostMapping("/add")
-    @ResponseBody // <-- Явно указываем, что этот метод возвращает данные, а не страницу
+    @ResponseBody
     public ResponseEntity<Map<String, Object>> addToCart(
             @RequestParam Long productId,
             @RequestParam(defaultValue = "1") int quantity,
             HttpSession session) {
         
-        String sessionId = session.getId();
-        cartService.addToCart(sessionId, productId, quantity);
-        
-        Cart cart = cartService.getCartBySession(sessionId);
-        int totalItems = cart.getItems().size();
-        double totalPrice = cart.getTotalPrice().doubleValue();
-
-        return ResponseEntity.ok(Map.of(
-            "success", true,
-            "totalItems", totalItems,
-            "totalPrice", totalPrice
-        ));
+        try {
+            String sessionId = session.getId();
+            cartService.addToCart(sessionId, productId, quantity);
+            
+            CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Товар добавлен в корзину",
+                "totalItems", cartDto.getTotalItems(),
+                "totalAmount", cartDto.getTotalAmount()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
     }
 
-    // MVC Endpoint: Страница корзины (возвращает HTML)
-    @GetMapping
-    public String showCart(HttpSession session, Model model) {
-        String sessionId = session.getId();
-        Cart cart = cartService.getCartBySession(sessionId);
-        model.addAttribute("cart", cart);
+    /**
+     * Обновить количество товара (AJAX)
+     */
+    @PostMapping("/update")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> updateQuantity(
+            @RequestParam Long itemId,
+            @RequestParam int quantity,
+            HttpSession session) {
         
-        // Эта строка должна совпадать с путем к файлу:
-        // src/main/resources/templates/cart/view.html
-        return "cart/view"; 
+        try {
+            String sessionId = session.getId();
+            // Если quantity <= 0, сервис автоматически удалит товар
+            cartService.updateQuantity(sessionId, itemId, quantity);
+            
+            CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Количество обновлено",
+                "totalItems", cartDto.getTotalItems(),
+                "totalAmount", cartDto.getTotalAmount()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Удалить товар из корзины (AJAX)
+     */
+    @PostMapping("/remove/{itemId}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> removeFromCart(
+            @PathVariable Long itemId,
+            HttpSession session) {
+        
+        try {
+            String sessionId = session.getId();
+            cartService.removeFromCart(sessionId, itemId);
+            
+            CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+            
+            // Если корзина пуста, можно вернуть редирект или просто обновить интерфейс
+            boolean isEmpty = cartDto.getItems().isEmpty();
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Товар удален",
+                "totalItems", cartDto.getTotalItems(),
+                "totalAmount", cartDto.getTotalAmount(),
+                "isEmpty", isEmpty
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Очистить всю корзину (AJAX)
+     */
+    @PostMapping("/clear")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> clearCart(HttpSession session) {
+        try {
+            String sessionId = session.getId();
+            cartService.clearCart(sessionId);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Корзина очищена",
+                "totalItems", 0,
+                "totalAmount", 0
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
+        }
     }
 }

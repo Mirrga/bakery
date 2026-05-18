@@ -1,4 +1,4 @@
-package com.example.bakery.feature.product.controller;
+package com.example.bakery.feature.review.controller;
 
 import com.example.bakery.feature.product.dto.ProductDto;
 import com.example.bakery.feature.product.dto.ProductRequestDto;
@@ -19,8 +19,6 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @Controller
 @RequestMapping("/products")
 public class ProductController {
@@ -33,12 +31,13 @@ public class ProductController {
         this.reviewService = reviewService;
     }
 
-    // =======================
-    // MVC Views (Thymeleaf) - Работаем с Entity для удобства шаблонов
-    // =======================
+    // ==========================================
+    // MVC CONTROLLER (Для Thymeleaf шаблонов)
+    // ==========================================
 
     @GetMapping
     public String listProducts(Model model, @PageableDefault(size = 8) Pageable pageable) {
+        // Для VIEW используем Entity (так удобнее в Thymeleaf)
         Page<Product> page = productService.findAll(pageable);
         model.addAttribute("products", page);
         return "products/list";
@@ -74,12 +73,13 @@ public class ProductController {
         Product product = productService.findById(id);
         ProductRequestDto dto = new ProductRequestDto();
         
-        // Маппинг только существующих полей
+        // Маппинг Entity -> Request DTO только существующих полей
         dto.setName(product.getName());
         dto.setDescription(product.getDescription());
         dto.setPrice(product.getPrice());
         dto.setImageUrl(product.getImageUrl());
-        // Поля available и stockQuantity убираем, так как их нет в сущности
+        // Поля available/stockQuantity убраны, так как их нет в сущности
+        
         if (product.getCategory() != null) {
             dto.setCategoryId(product.getCategory().getId());
         }
@@ -89,13 +89,14 @@ public class ProductController {
         return "products/form";
     }
 
-    // =======================
-    // REST API - Работаем строго с DTO
-    // =======================
+    // ==========================================
+    // REST API CONTROLLER (Возвращает JSON + DTO)
+    // ==========================================
 
     @GetMapping("/api")
     @ResponseBody
     public ResponseEntity<Page<ProductDto>> getProductsApi(@PageableDefault(size = 10) Pageable pageable) {
+        // Используем метод, возвращающий DTO
         return ResponseEntity.ok(productService.findAllDto(pageable));
     }
 
@@ -105,7 +106,7 @@ public class ProductController {
         try {
             return ResponseEntity.ok(productService.findByIdDto(id));
         } catch (ResourceNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            return ResponseEntity.notFound().build();
         }
     }
 
@@ -121,7 +122,7 @@ public class ProductController {
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Ошибка при создании: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("Ошибка сервера: " + e.getMessage());
         }
     }
 
@@ -137,7 +138,7 @@ public class ProductController {
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Ошибка при обновлении: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("Ошибка сервера: " + e.getMessage());
         }
     }
 

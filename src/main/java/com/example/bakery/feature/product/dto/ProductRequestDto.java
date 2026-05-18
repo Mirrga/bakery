@@ -1,12 +1,11 @@
 package com.example.bakery.feature.product.dto;
 
-import java.math.BigDecimal;
-
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import java.math.BigDecimal;
 
 @Data
 public class ProductRequestDto {
@@ -15,7 +14,7 @@ public class ProductRequestDto {
     @Size(min = 2, max = 100, message = "Название должно быть от 2 до 100 символов")
     private String name;
 
-    @Size(max = 500, message = "Описание не должно превышать 500 символов")
+    @Size(max = 1000, message = "Описание не должно превышать 1000 символов")
     private String description;
 
     @NotNull(message = "Цена обязательна")
@@ -24,4 +23,15 @@ public class ProductRequestDto {
 
     @NotNull(message = "Категория обязательна")
     private Long categoryId;
+
+    // Новые поля для соответствия сущности Product
+
+    @Size(max = 255, message = "URL изображения слишком длинный")
+    private String imageUrl;
+
+    private Boolean available = true; // По умолчанию товар доступен
+
+    @NotNull(message = "Количество на складе обязательно")
+    @DecimalMin(value = "0", message = "Количество не может быть отрицательным")
+    private Integer stockQuantity = 0;
 }

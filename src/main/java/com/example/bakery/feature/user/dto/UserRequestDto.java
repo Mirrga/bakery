@@ -1,12 +1,20 @@
 package com.example.bakery.feature.user.dto;
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
+import java.util.Set;
 
 @Data
-public class RegistrationRequest {
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserRequestDto {
 
     @NotBlank(message = "Имя обязательно")
     @Size(min = 2, max = 50, message = "Имя должно быть от 2 до 50 символов")
@@ -16,18 +24,16 @@ public class RegistrationRequest {
     @Size(min = 2, max = 50, message = "Фамилия должна быть от 2 до 50 символов")
     private String lastName;
 
-    @NotBlank(message = "Имя пользователя обязательно")
-    @Size(min = 3, max = 50, message = "Имя пользователя должно быть от 3 до 50 символов")
-    private String username;
-
     @NotBlank(message = "Email обязателен")
     @Email(message = "Некорректный формат email")
     private String email;
 
-    @NotBlank(message = "Пароль обязателен")
-    @Size(min = 6, message = "Пароль должен быть не менее 6 символов")
+    // Пароль нужен только при регистрации или смене пароля
+    @Size(min = 6, message = "Пароль должен быть минимум 6 символов")
     private String password;
 
-    @NotBlank(message = "Подтверждение пароля обязательно")
-    private String confirmPassword;
+    // Поле для подтверждения пароля (не сохраняется в БД)
+    private String confirmPassword; 
+
+    private Set<String> roles; // Опционально, если пользователь может назначать роли сам (обычно нет)
 }

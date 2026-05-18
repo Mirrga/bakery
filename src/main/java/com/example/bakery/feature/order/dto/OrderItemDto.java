@@ -8,7 +8,16 @@ public class OrderItemDto {
     private Long id;
     private Long productId;
     private String productName;
+    private String productImageUrl;
     private Integer quantity;
-    private BigDecimal price;
-    private BigDecimal subtotal;
+    private BigDecimal price; // Исправлено на BigDecimal
+    private BigDecimal subtotal; // Исправлено на BigDecimal
+
+    // Метод для автоматического расчета subtotal, если нужно
+    public BigDecimal getSubtotal() {
+        if (price != null && quantity != null) {
+            return price.multiply(BigDecimal.valueOf(quantity));
+        }
+        return BigDecimal.ZERO;
+    }
 }

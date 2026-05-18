@@ -9,8 +9,8 @@ import java.util.List;
 public class OrderDto {
     private Long id;
     private Long userId;
-    private String status;
-    private BigDecimal totalAmount;
+    private String status; // Или enum OrderStatus, но String проще для JSON
+    private BigDecimal totalAmount; // Исправлено на BigDecimal
     private String shippingAddress;
     private String phone;
     private String email;

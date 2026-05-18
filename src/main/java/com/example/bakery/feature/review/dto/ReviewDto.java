@@ -1,9 +1,11 @@
 package com.example.bakery.feature.review.dto;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor // Добавляем пустой конструктор
 public class ReviewDto {
     private Long id;
     private Long productId;

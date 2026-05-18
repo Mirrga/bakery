@@ -16,7 +16,14 @@ public class Category {
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(unique = true)
+    private String slug;
+
     // One-to-Many: Одна категория имеет много товаров
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<Product> products = new ArrayList<>();
 }
