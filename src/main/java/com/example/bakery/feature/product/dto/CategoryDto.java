@@ -1,9 +1,13 @@
 package com.example.bakery.feature.product.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+import java.util.List;
 
-public record CategoryDto(
-        Long id,
-        @NotBlank(message = "Название категории обязательно")
-        String name
-) {}
+@Data
+public class CategoryDto {
+    private Long id;
+    private String name;
+    private String description;
+    private String slug;
+    private List<Long> productIds;
+}

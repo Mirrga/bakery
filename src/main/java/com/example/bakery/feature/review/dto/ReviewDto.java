@@ -1,20 +1,17 @@
 package com.example.bakery.feature.review.dto;
 
-import lombok.*;
+import lombok.Data;
 import java.time.LocalDateTime;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data
 public class ReviewDto {
     private Long id;
     private Long productId;
     private String productName;
     private Long userId;
-    private String username;
+    private String userName;
     private Integer rating;
     private String comment;
+    private Boolean approved;
     private LocalDateTime createdAt;
 }
