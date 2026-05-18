@@ -9,6 +9,8 @@ import com.example.bakery.feature.cart.repository.CartRepository;
 import com.example.bakery.feature.product.entity.Product;
 import com.example.bakery.feature.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,8 @@ import java.util.stream.Collectors;
 @Transactional
 public class CartService {
 
+    private static final Logger log = LoggerFactory.getLogger(CartService.class);
+
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
@@ -33,8 +37,10 @@ public class CartService {
      */
     @Transactional(readOnly = true)
     public Cart getOrCreateCart(String sessionId) {
-        return cartRepository.findBySessionIdWithItems(sessionId) // <-- Изменено здесь
+        log.debug("Поиск корзины для сессии: {}", sessionId);
+        return cartRepository.findBySessionIdWithItems(sessionId)
                 .orElseGet(() -> {
+                    log.info("Корзина не найдена, создаем новую для сессии: {}", sessionId);
                     Cart newCart = new Cart();
                     newCart.setSessionId(sessionId);
                     return cartRepository.save(newCart);
@@ -43,27 +49,32 @@ public class CartService {
 
     /**
      * Добавить товар в корзину
-     * Оптимизировано: не загружаем всю корзину, если товар уже есть (можно улучшить через JPQL)
      */
     public void addToCart(String sessionId, Long productId, int quantity) {
         if (quantity <= 0) {
+            log.warn("Попытка добавить товар с недопустимым количеством: {}", quantity);
             throw new IllegalArgumentException("Количество должно быть больше 0");
         }
 
+        log.info("Добавление товара ID={} в количестве {} в корзину сессии {}", productId, quantity, sessionId);
+
         Cart cart = getOrCreateCart(sessionId);
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Товар не найден с ID: " + productId));
+                .orElseThrow(() -> {
+                    log.error("Товар не найден с ID: {}", productId);
+                    return new RuntimeException("Товар не найден с ID: " + productId);
+                });
 
-        // Ищем существующий элемент в загруженном списке (Hibernate управляет коллекцией)
         Optional<CartItem> existingItemOpt = cart.getItems().stream()
                 .filter(item -> item.getProduct().getId().equals(productId))
                 .findFirst();
 
         if (existingItemOpt.isPresent()) {
             CartItem existingItem = existingItemOpt.get();
-            existingItem.setQuantity(existingItem.getQuantity() + quantity);
-            // Сохраняем только элемент, так как cascade уже настроен, но явное сохранение надежнее при изменении
+            int newQuantity = existingItem.getQuantity() + quantity;
+            existingItem.setQuantity(newQuantity);
             cartItemRepository.save(existingItem);
+            log.info("Обновлено количество товара ID={} в корзине. Новое количество: {}", productId, newQuantity);
         } else {
             CartItem newItem = CartItem.builder()
                     .cart(cart)
@@ -71,8 +82,8 @@ public class CartService {
                     .quantity(quantity)
                     .build();
             cart.getItems().add(newItem);
-            // Cascade ALL на关系中 сохранит новый элемент при сохранении корзины
-            cartRepository.save(cart); 
+            cartRepository.save(cart);
+            log.info("Добавлен новый товар ID={} в корзину сессии {}", productId, sessionId);
         }
     }
 
@@ -80,18 +91,25 @@ public class CartService {
      * Обновить количество товара в корзине
      */
     public void updateQuantity(String sessionId, Long itemId, int quantity) {
+        log.debug("Обновление количества для элемента корзины ID={}, количество={}", itemId, quantity);
+        
         Cart cart = getOrCreateCart(sessionId);
         
         CartItem item = cart.getItems().stream()
                 .filter(i -> i.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Товар в корзине не найден"));
+                .orElseThrow(() -> {
+                    log.warn("Элемент корзины ID={} не найден для обновления", itemId);
+                    return new RuntimeException("Товар в корзине не найден");
+                });
 
         if (quantity <= 0) {
+            log.info("Количество товара ID={} <= 0, удаляем из корзины", itemId);
             removeFromCart(sessionId, itemId);
         } else {
             item.setQuantity(quantity);
             cartItemRepository.save(item);
+            log.info("Количество товара ID={} обновлено на {}", itemId, quantity);
         }
     }
 
@@ -99,44 +117,53 @@ public class CartService {
      * Удалить конкретный товар из корзины
      */
     public void removeFromCart(String sessionId, Long itemId) {
+        log.info("Удаление товара ID={} из корзины сессии {}", itemId, sessionId);
+        
         Cart cart = getOrCreateCart(sessionId);
         
         CartItem itemToRemove = cart.getItems().stream()
                 .filter(i -> i.getId().equals(itemId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Товар в корзине не найден"));
+                .orElseThrow(() -> {
+                    log.warn("Попытка удалить несуществующий товар ID={} из корзины", itemId);
+                    return new RuntimeException("Товар в корзине не найден");
+                });
 
         cart.getItems().remove(itemToRemove);
-        cartItemRepository.delete(itemToRemove); // Явное удаление
+        cartItemRepository.delete(itemToRemove);
         cartRepository.save(cart);
+        log.info("Товар ID={} успешно удален из корзины", itemId);
     }
 
     /**
      * Очистить корзину полностью
      */
     public void clearCart(String sessionId) {
+        log.info("Полная очистка корзины для сессии {}", sessionId);
+        
         Cart cart = getOrCreateCart(sessionId);
-        // Удаляем элементы через репозиторий, чтобы сработали триггеры/события если есть
+        int itemCount = cart.getItems().size();
+        
         List<CartItem> itemsToDelete = List.copyOf(cart.getItems()); 
         cart.getItems().clear();
         cartItemRepository.deleteAll(itemsToDelete);
         cartRepository.save(cart);
+        
+        log.info("Корзина очищена. Удалено элементов: {}", itemCount);
     }
 
     /**
      * Привязать корзину к пользователю (при логине/регистрации)
      */
     public void mergeCartWithUser(String sessionId, Long userId) {
-        // Логика слияния гостевой корзины с корзиной пользователя может быть сложной.
-        // В простом случае: просто меняем sessionId на userId или привязываем User entity.
-        // Здесь реализуем простую привязку сущности User, если она передается извне, 
-        // либо поиск корзины по userId (если такая логика нужна).
-        // Для текущего примера оставим работу с sessionId, так как User связан с Cart через @OneToOne.
-        // Если нужно привязать:
+        log.debug("Попытка привязки корзины сессии {} к пользователю ID={}", sessionId, userId);
+        
         Cart cart = cartRepository.findBySessionId(sessionId).orElse(null);
         if (cart != null && cart.getUser() == null) {
-             // Логика поиска корзины пользователя и слияния товаров должна быть здесь
-             // Пока просто помечаем, что корзина принадлежит сессии, а пользователь подтянется через связь, если она настроена
+             log.info("Корзина сессии {} найдена, готова к привязке пользователя {}", sessionId, userId);
+             // Логика слияния может быть добавлена здесь
+        } else {
+             log.debug("Корзина не найдена или уже привязана к пользователю");
         }
     }
 
@@ -147,12 +174,13 @@ public class CartService {
      */
     @Transactional(readOnly = true)
     public CartDto getCartDtoBySession(String sessionId) {
+        log.debug("Запрос DTO корзины для сессии {}", sessionId);
         Cart cart = getOrCreateCart(sessionId);
         return mapToDto(cart);
     }
 
     /**
-     * Получить сущность корзины (для внутренних операций, например, создания заказа)
+     * Получить сущность корзины (для внутренних операций)
      */
     @Transactional(readOnly = true)
     public Cart getCartBySession(String sessionId) {
@@ -191,6 +219,7 @@ public class CartService {
         dto.setTotalAmount(calculateTotal(itemDtos));
         dto.setTotalItems(calculateTotalItems(itemDtos));
 
+        log.debug("Маппинг корзины завершен. Всего товаров: {}, Сумма: {}", dto.getTotalItems(), dto.getTotalAmount());
         return dto;
     }
 

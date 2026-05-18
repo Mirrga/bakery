@@ -9,6 +9,8 @@ import com.example.bakery.feature.product.repository.ProductRepository;
 import com.example.bakery.feature.review.entity.Review;
 import com.example.bakery.feature.review.repository.ReviewRepository;
 import com.example.bakery.global.exception.ResourceNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import java.util.Collections;
 @Service
 @Transactional
 public class ProductService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
@@ -36,55 +40,79 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductDto> findAllDto(Pageable pageable) {
-        return productRepository.findAll(pageable).map(this::mapToDto);
+        log.debug("Запрос списка товаров (DTO): страница={}, размер={}", pageable.getPageNumber(), pageable.getPageSize());
+        Page<ProductDto> result = productRepository.findAll(pageable).map(this::mapToDto);
+        log.debug("Найдено товаров: {}", result.getTotalElements());
+        return result;
     }
 
     @Transactional(readOnly = true)
     public ProductDto findByIdDto(Long id) {
+        log.debug("Поиск товара по ID (DTO): {}", id);
         // Для DTO нам нужно подгрузить отзывы, иначе mapToDto получит пустой список из-за LAZY
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+                .orElseThrow(() -> {
+                    log.warn("Товар не найден с ID: {}", id);
+                    return new ResourceNotFoundException("Product not found with id: " + id);
+                });
         
         // Инициализируем коллекцию отзывов явно внутри транзакции
         if (product.getReviews() != null) {
             product.getReviews().size(); 
+            log.debug("Инициализировано {} отзывов для товара {}", product.getReviews().size(), id);
         }
         
         return mapToDto(product);
     }
 
     public ProductDto createDto(ProductRequestDto dto) {
+        log.info("Создание нового товара: {}", dto.getName());
         Product created = create(dto);
+        log.info("Товар успешно создан с ID: {}", created.getId());
         return mapToDto(created);
     }
 
     public ProductDto updateDto(Long id, ProductRequestDto dto) {
+        log.info("Обновление товара ID={}: {}", id, dto.getName());
         Product updated = update(id, dto);
+        log.info("Товар ID={} успешно обновлен", id);
         return mapToDto(updated);
     }
 
     @Transactional(readOnly = true)
     public Double getAverageRating(Long productId) {
+        log.debug("Расчет среднего рейтинга для товара ID={}", productId);
         Double avg = reviewRepository.getAverageRatingByProductId(productId);
-        return avg != null ? avg : 0.0;
+        double result = avg != null ? avg : 0.0;
+        log.debug("Средний рейтинг товара {}: {}", productId, result);
+        return result;
     }
 
     // --- Internal Logic Methods (работают с Entity) ---
 
     @Transactional(readOnly = true)
     public Page<Product> findAll(Pageable pageable) {
+        log.debug("Запрос списка товаров (Entity): страница={}, размер={}", pageable.getPageNumber(), pageable.getPageSize());
         return productRepository.findAll(pageable);
     }
 
     @Transactional(readOnly = true)
     public Product findById(Long id) {
+        log.debug("Поиск товара по ID (Entity): {}", id);
         return productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
+                .orElseThrow(() -> {
+                    log.warn("Товар не найден с ID: {}", id);
+                    return new ResourceNotFoundException("Product not found with id: " + id);
+                });
     }
 
     public Product create(ProductRequestDto dto) {
+        log.debug("Сохранение товара в БД: {}", dto.getName());
         Category category = categoryRepository.findById(dto.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + dto.getCategoryId()));
+                .orElseThrow(() -> {
+                    log.error("Категория не найдена с ID: {}", dto.getCategoryId());
+                    return new ResourceNotFoundException("Category not found with id: " + dto.getCategoryId());
+                });
 
         Product product = new Product();
         product.setName(dto.getName());
@@ -92,29 +120,38 @@ public class ProductService {
         product.setPrice(dto.getPrice());
         product.setImageUrl(dto.getImageUrl());
         product.setCategory(category);
-        // Поля available и stockQuantity удалены, так как их нет в сущности Product
         
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        log.debug("Товар сохранен с ID: {}", saved.getId());
+        return saved;
     }
 
     public Product update(Long id, ProductRequestDto dto) {
+        log.debug("Поиск товара для обновления: {}", id);
         Product product = findById(id);
+        
         Category category = categoryRepository.findById(dto.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + dto.getCategoryId()));
+                .orElseThrow(() -> {
+                    log.error("Категория не найдена с ID: {}", dto.getCategoryId());
+                    return new ResourceNotFoundException("Category not found with id: " + dto.getCategoryId());
+                });
 
         product.setName(dto.getName());
         product.setDescription(dto.getDescription());
         product.setPrice(dto.getPrice());
         product.setImageUrl(dto.getImageUrl());
         product.setCategory(category);
-        // Поля available и stockQuantity удалены, так как их нет в сущности Product
 
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        log.info("Товар ID={} успешно обновлен в БД", id);
+        return saved;
     }
 
     public void delete(Long id) {
+        log.info("Удаление товара ID={}", id);
         Product product = findById(id);
         productRepository.delete(product);
+        log.info("Товар ID={} успешно удален", id);
     }
 
     // --- Mapper Helper ---
