@@ -49,7 +49,7 @@ public class UserService implements UserDetailsService {
     /**
      * Регистрация нового пользователя
      */
-    @Transactional
+   @Transactional
     public UserDto registerUser(RegistrationRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             throw new IllegalArgumentException("Пароли не совпадают");
@@ -64,13 +64,14 @@ public class UserService implements UserDetailsService {
         }
 
         User user = new User();
+        user.setFirstName(request.getFirstName()); // Новое поле
+        user.setLastName(request.getLastName());   // Новое поле
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEnabled(true);
         user.setBonusBalance(BigDecimal.ZERO);
 
-        // Назначаем роль CUSTOMER по умолчанию
         Role userRole = roleRepository.findByName(UserRole.CUSTOMER)
                 .orElseThrow(() -> new RuntimeException("Роль CUSTOMER не найдена в БД"));
         
@@ -90,11 +91,14 @@ public class UserService implements UserDetailsService {
     private UserDto convertToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())
-                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
                 .email(user.getEmail())
                 .bonusBalance(user.getBonusBalance())
-                // Исправлено: напрямую берем getName() из сущности Role
-                .roles(user.getRoles().stream().map(Role::getName).collect(Collectors.toSet()))
+                // ИСПРАВЛЕНИЕ: Явно вызываем .name() для получения строки из enum UserRole
+                .roles(user.getRoles().stream()
+                        .map(role -> role.getName().name()) 
+                        .collect(Collectors.toSet()))
                 .build();
     }
 

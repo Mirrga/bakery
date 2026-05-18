@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход</title>
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Подключаем CSS через Thymeleaf -->
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
 
@@ -12,35 +13,58 @@
     <div class="container">
         <nav>
             <div class="logo">LOGO</div>
-
             <ul>
-                <li><a href="index.html">О нас</a></li>
-                <li><a href="products.html">Меню</a></li>
-                <li><a href="login.html">Вход</a></li>
+                <li><a th:href="@{/}">О нас</a></li>
+                <li><a th:href="@{/products}">Меню</a></li>
+                <li><a th:href="@{/auth/login}">Вход</a></li>
             </ul>
         </nav>
     </div>
 </header>
 
 <div class="auth-page">
-
     <div class="auth-box">
-
         <h1>Вход</h1>
 
-        <form id="loginForm">
+        <!-- Блок ошибок (неверный пароль/логин) -->
+        <div th:if="${param.error}" class="alert alert-danger" style="color: red; margin-bottom: 15px;">
+            Неверное имя пользователя или пароль.
+        </div>
+        
+        <!-- Блок успеха (после регистрации) -->
+        <div th:if="${param.registered}" class="alert alert-success" style="color: green; margin-bottom: 15px;">
+            Регистрация успешна! Пожалуйста, войдите.
+        </div>
 
-            <input type="email" id="loginEmail" placeholder="Ваш e-mail" required>
+        <!-- Форма для Spring Security -->
+        <!-- Важно: action должен вести на /login (стандартный обработчик Spring), method="post" -->
+        <form th:action="@{/login}" method="post">
+            
+            <!-- ВАЖНО: Строка с _csrf УДАЛЕНА, так как CSRF отключен в конфиге -->
+            
+            <!-- Наш кастомный токен (если планируется ручная проверка в контроллере/фильтре) -->
+            <!-- Если вход обрабатывается стандартным фильтром Spring Security, это поле можно игнорировать или убрать -->
+            <input type="hidden" name="formToken" th:value="${formToken}" />
 
-            <input type="password" id="loginPassword" placeholder="Пароль" required>
+            <!-- Поле Email (Spring Security ждет параметр 'username') -->
+            <div class="mb-3">
+                <label for="username" class="form-label">E-mail</label>
+                <input type="email" id="username" name="username" class="form-control" placeholder="Ваш e-mail" required autofocus>
+            </div>
 
-            <button type="submit">OK</button>
+            <!-- Поле Пароль -->
+            <div class="mb-3">
+                <label for="password" class="form-label">Пароль</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Пароль" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
         </form>
 
-        <div class="auth-links">
-            <a href="forgot.html">Забыли пароль?</a>
+        <div class="auth-links" style="margin-top: 15px;">
+            <a th:href="@{/auth/forgot}">Забыли пароль?</a>
             <br><br>
-            <a href="register.html">Регистрация</a>
+            <a th:href="@{/auth/register}">Нет аккаунта? Зарегистрироваться</a>
         </div>
     </div>
 </div>
@@ -48,54 +72,30 @@
 <footer>
     <div class="container footer-grid">
         <div class="footer-brand">
-            <div class="footer-logo">
-                GT
-            </div>
+            <div class="footer-logo">GT</div>
             <h2>Gluten Tag</h2>
-            <p>
-                Готовы ответить там,
-                где вам удобно.
-                Переходите в наши соц. сети.
-            </p>
+            <p>Готовы ответить там, где вам удобно.</p>
             <div class="socials">
-                <a href="https:\\vk.com\glutenbakery">
-                    VK
-                </a>
-                <a href="https:\\telegram.com\glutenbakery">
-                    Telegram
-                </a>
+                <a href="#">VK</a>
+                <a href="#">Telegram</a>
             </div>
         </div>
         <div class="footer-info">
             <h3>Контакты</h3>
             <p>📍 Казань, ул. Татарстан 24</p>
             <p>📞 +8 (800) 555-35-35</p>
-            <p>✉ glutentag@gmail.com</p>
-            <p>🕒 Ежедневно 08:00–22:00</p>
         </div>
         <div class="footer-links">
             <h3>Информация</h3>
-            <a href="#">
-                Условия пользования
-            </a>
-            <a href="#">
-                Политика конфиденциальности
-            </a>
-            <a href="#">
-                Бонусная программа
-            </a>
+            <a href="#">Условия пользования</a>
+            <a href="#">Политика конфиденциальности</a>
         </div>
     </div>
-
     <div class="footer-bottom">
-        <p>
-            © 2026 enki, hazzdtko & Mirga_ii.
-            Все права защищены.
-        </p>
+        <p>© 2026 Gluten Tag. Все права защищены.</p>
     </div>
 </footer>
 
-<script src="js/app.js"></script>
-
+<!-- Убрали старый скрипт, так как теперь форма работает через стандартный submit -->
 </body>
 </html>

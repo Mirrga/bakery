@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ошибка</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .error-container { text-align: center; padding: 50px; }
+        .error-code { font-size: 4rem; color: #d9534f; font-weight: bold; }
+        .error-msg { font-size: 1.2rem; margin: 20px 0; }
+        .btn-home { display: inline-block; padding: 10px 20px; background: #333; color: #fff; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+<div class="container error-container">
+    <div class="error-code" th:text="${status}">500</div>
+    <h2>Упс! Что-то пошло не так</h2>
+    <p class="error-msg" th:text="${message}">Описание ошибки</p>
+    <p><small th:text="${path}">URL</small></p>
+    <br>
+    <a href="/" class="btn-home">Вернуться на главную</a>
+</div>
+</body>
+</html>

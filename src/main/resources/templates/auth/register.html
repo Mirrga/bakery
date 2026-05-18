@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Регистрация</title>
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Подключаем CSS через Thymeleaf -->
+    <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
 
@@ -12,37 +13,67 @@
     <div class="container">
         <nav>
             <div class="logo">LOGO</div>
-
             <ul>
-                <li><a href="index.html">О нас</a></li>
-                <li><a href="products.html">Меню</a></li>
-                <li><a href="login.html">Вход</a></li>
+                <!-- Ссылки на контроллеры -->
+                <li><a th:href="@{/}">О нас</a></li>
+                <li><a th:href="@{/products}">Меню</a></li>
+                <li><a th:href="@{/login}">Вход</a></li>
             </ul>
         </nav>
     </div>
 </header>
 
 <div class="auth-page">
-
     <div class="auth-box">
-
         <h1>Регистрация</h1>
 
-        <form id="registerForm">
+        <!-- 
+          Важно: 
+          1. th:action указывает на URL контроллера.
+          2. th:object связывает форму с объектом userDto из контроллера.
+          3. method="post" для отправки данных.
+        -->
+        <form th:action="@{/registration}" th:object="${userDto}" method="post">
+            <!-- Скрытый токен -->
+            <input type="hidden" th:name="formToken" th:value="${formToken}" />
 
-            <input type="text" id="firstName" placeholder="Имя" required>
+            <!-- Общие ошибки -->
+            <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+            <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger">
+                <ul>
+                    <li th:each="err : ${#fields.globalErrors()}" th:text="${err}"></li>
+                </ul>
+            </div>
 
-            <input type="text" id="lastName" placeholder="Фамилия" required>
+            <!-- Имя -->
+            <div class="mb-3">
+                <input type="text" id="firstName" th:field="*{firstName}" placeholder="Имя" required />
+                <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('firstName')}" th:errors="*{firstName}"></div>
+            </div>
 
-            <input type="email" id="registerEmail" placeholder="Ваш e-mail" required>
+            <!-- Фамилия -->
+            <div class="mb-3">
+                <input type="text" id="lastName" th:field="*{lastName}" placeholder="Фамилия" required />
+                <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('lastName')}" th:errors="*{lastName}"></div>
+            </div>
 
-            <input type="password" id="registerPassword" placeholder="Ваш пароль" required>
+            <!-- Email -->
+            <div class="mb-3">
+                <input type="email" id="registerEmail" th:field="*{email}" placeholder="Ваш e-mail" required />
+                <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+            </div>
+
+            <!-- Пароль -->
+            <div class="mb-3">
+                <input type="password" id="registerPassword" th:field="*{password}" placeholder="Ваш пароль" required />
+                <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+            </div>
 
             <button type="submit">OK</button>
         </form>
 
         <div class="auth-links">
-            <a href="login.html">Уже есть аккаунт?</a>
+            <a th:href="@{/login}">Уже есть аккаунт?</a>
         </div>
     </div>
 </div>
@@ -50,22 +81,12 @@
 <footer>
     <div class="container footer-grid">
         <div class="footer-brand">
-            <div class="footer-logo">
-                GT
-            </div>
+            <div class="footer-logo">GT</div>
             <h2>Gluten Tag</h2>
-            <p>
-                Готовы ответить там,
-                где вам удобно.
-                Переходите в наши соц. сети.
-            </p>
+            <p>Готовы ответить там, где вам удобно.</p>
             <div class="socials">
-                <a href="https:\\vk.com\glutenbakery">
-                    VK
-                </a>
-                <a href="https:\\telegram.com\glutenbakery">
-                    Telegram
-                </a>
+                <a href="https://vk.com/glutenbakery" target="_blank">VK</a>
+                <a href="https://t.me/glutenbakery" target="_blank">Telegram</a>
             </div>
         </div>
         <div class="footer-info">
@@ -77,27 +98,18 @@
         </div>
         <div class="footer-links">
             <h3>Информация</h3>
-            <a href="#">
-                Условия пользования
-            </a>
-            <a href="#">
-                Политика конфиденциальности
-            </a>
-            <a href="#">
-                Бонусная программа
-            </a>
+            <a href="#">Условия пользования</a>
+            <a href="#">Политика конфиденциальности</a>
+            <a href="#">Бонусная программа</a>
         </div>
     </div>
-
     <div class="footer-bottom">
-        <p>
-            © 2026 enki, hazzdtko & Mirga_ii.
-            Все права защищены.
-        </p>
+        <p>© 2026 Gluten Tag. Все права защищены.</p>
     </div>
 </footer>
 
-<script src="js/app.js"></script>
+<!-- Скрипт пока можно оставить, но он не должен перехватывать submit формы, если мы хотим стандартную работу Spring -->
+<script th:src="@{/js/app.js}"></script>
 
 </body>
 </html>

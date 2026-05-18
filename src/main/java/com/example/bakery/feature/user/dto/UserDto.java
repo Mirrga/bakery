@@ -1,12 +1,15 @@
 package com.example.bakery.feature.user.dto;
 
 import com.example.bakery.feature.user.entity.Role;
-import com.example.bakery.feature.user.entity.UserRole;
+import com.example.bakery.feature.user.entity.UserRole; // Проверь, нужен ли этот импорт, обычно достаточно Role
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,32 +20,46 @@ import java.util.stream.Collectors;
 @Builder
 public class UserDto {
     private Long id;
-    private String username;
-    private String email;
-    private BigDecimal bonusBalance;
-    private Set<UserRole> roles;
 
+    @NotBlank(message = "Имя обязательно")
+    @Size(min = 2, max = 50, message = "Имя должно быть от 2 до 50 символов")
+    private String firstName;
+
+    @NotBlank(message = "Фамилия обязательна")
+    @Size(min = 2, max = 50, message = "Фамилия должна быть от 2 до 50 символов")
+    private String lastName;
+
+    @NotBlank(message = "Email обязателен")
+    @Email(message = "Некорректный формат email")
+    private String email;
+
+    @NotBlank(message = "Пароль обязателен")
+    @Size(min = 6, message = "Пароль должен быть минимум 6 символов")
+    private String password;
+
+    // Поле для подтверждения пароля (не сохраняется в БД, только для формы)
+    @NotBlank(message = "Подтверждение пароля обязательно")
+    private String confirmPassword; 
+
+    private BigDecimal bonusBalance;
+    private Set<String> roles; // Меняем на Set<String> для простоты передачи имен ролей
+
+    // Маппинг из Entity в DTO
     public static UserDto fromEntity(com.example.bakery.feature.user.entity.User user) {
+        // Явно собираем имена ролей в Set<String>
+        Set<String> roleNames = user.getRoles().stream()
+                .map(role -> role.getName().name()) // Если getName() возвращает Enum, добавляем .name()
+                // ИЛИ, если getName() уже возвращает String:
+                // .map(role -> role.getName()) 
+                .collect(Collectors.toSet());
+
         return UserDto.builder()
                 .id(user.getId())
-                .username(user.getUsername())
+                .firstName(user.getFirstName() != null ? user.getFirstName() : "")
+                .lastName(user.getLastName() != null ? user.getLastName() : "")
                 .email(user.getEmail())
                 .bonusBalance(user.getBonusBalance())
-                // Явный маппинг, чтобы избежать проблем с методом ссылки ::
-                .roles(user.getRoles().stream()
-                        .map(Role::getName) 
-                        .collect(Collectors.toSet()))
+                .roles(roleNames) // Передаем готовый Set<String>
                 .build();
-    }
-    
-    // Альтернативный метод создания, если билдер вызывает проблемы в конкретном месте вызова
-    public static UserDto create(Long id, String username, String email, BigDecimal bonusBalance, Set<UserRole> roles) {
-        UserDto dto = new UserDto();
-        dto.setId(id);
-        dto.setUsername(username);
-        dto.setEmail(email);
-        dto.setBonusBalance(bonusBalance);
-        dto.setRoles(roles);
-        return dto;
     }
 }

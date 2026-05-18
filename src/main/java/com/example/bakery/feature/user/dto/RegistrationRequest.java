@@ -8,8 +8,16 @@ import lombok.Data;
 @Data
 public class RegistrationRequest {
 
+    @NotBlank(message = "Имя обязательно")
+    @Size(min = 2, max = 50, message = "Имя должно быть от 2 до 50 символов")
+    private String firstName;
+
+    @NotBlank(message = "Фамилия обязательна")
+    @Size(min = 2, max = 50, message = "Фамилия должна быть от 2 до 50 символов")
+    private String lastName;
+
     @NotBlank(message = "Имя пользователя обязательно")
-    @Size(min = 3, max = 50, message = "Длина имени от 3 до 50 символов")
+    @Size(min = 3, max = 50, message = "Имя пользователя должно быть от 3 до 50 символов")
     private String username;
 
     @NotBlank(message = "Email обязателен")

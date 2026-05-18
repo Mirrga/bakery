@@ -20,27 +20,33 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            // ВРЕМЕННО ОТКЛЮЧАЕМ CSRF, чтобы исключить его влияние на доступ к странице регистрации
+            .csrf(csrf -> csrf.disable()) 
             
             .authorizeHttpRequests(auth -> auth
-                // Публичные ресурсы
-                .requestMatchers("/products/**", "/cart/**", "/api/products/**").permitAll()
+                // 1. Статические ресурсы - должны быть ПЕРВЫМИ
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                 
-                // Регистрация и логин доступны всем
-                .requestMatchers("/auth/register", "/auth/login").permitAll()
+                // 2. Страницы аутентификации - ДО anyRequest().authenticated()
+                .requestMatchers("/auth/login", "/auth/register").permitAll()
+                .requestMatchers("/auth/api/**").permitAll()
                 
-                // Админка только для ADMIN
+                // 3. Публичные страницы
+                .requestMatchers("/", "/index", "/products", "/products/**").permitAll() 
+                
+                // 4. Админка
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 
-                // Личный кабинет и заказы только для авторизованных
+                // 5. Личный кабинет
                 .requestMatchers("/profile/**", "/orders/**").authenticated()
                 
-                // Все остальное требует входа
+                // 6. ВСЁ остальное требует входа. 
+                // Внимание: если вы добавите сюда новый путь, он будет закрыт.
                 .anyRequest().authenticated()
             )
             
             .formLogin(form -> form
-                .loginPage("/auth/login") // Наша кастомная страница входа
+                .loginPage("/auth/login")
                 .defaultSuccessUrl("/products", true)
                 .failureUrl("/auth/login?error=true")
                 .permitAll()
@@ -50,7 +56,9 @@ public class SecurityConfig {
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/products?logout=true")
                 .permitAll()
-            );
+            )
+            // Важно: разрешаем фреймы (если используете h2 console для тестов, иначе можно убрать)
+            .headers(headers -> headers.frameOptions(frame -> frame.disable())); 
 
         return http.build();
     }
