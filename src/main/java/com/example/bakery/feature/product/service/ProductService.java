@@ -2,6 +2,7 @@ package com.example.bakery.feature.product.service;
 
 import com.example.bakery.feature.product.dto.ProductDto;
 import com.example.bakery.feature.product.dto.ProductRequestDto;
+import com.example.bakery.feature.product.dto.ProductResponseDto; // Импортируем новый DTO
 import com.example.bakery.feature.product.entity.Category;
 import com.example.bakery.feature.product.entity.Product;
 import com.example.bakery.feature.product.repository.CategoryRepository;
@@ -36,7 +37,46 @@ public class ProductService {
         this.reviewRepository = reviewRepository;
     }
 
-    // --- Public API Methods (возвращают DTO) ---
+    // =======================
+    // НОВЫЕ МЕТОДЫ ДЛЯ FRONTEND / AJAX (ProductResponseDto)
+    // =======================
+
+    /**
+     * Возвращает товар в виде ResponseDTO (с форматированной ценой, рейтингом и т.д.)
+     * Используется для детального просмотра через REST API.
+     */
+    @Transactional(readOnly = true)
+    public ProductResponseDto findResponseDtoById(Long id) {
+        log.debug("Поиск товара по ID (ResponseDTO): {}", id);
+        
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Товар не найден с ID: {}", id);
+                    return new ResourceNotFoundException("Product not found with id: " + id);
+                });
+        
+        // Принудительная инициализация отзывов для расчета рейтинга внутри транзакции
+        if (product.getReviews() != null) {
+            product.getReviews().size(); 
+            log.debug("Инициализировано {} отзывов для товара {}", product.getReviews().size(), id);
+        }
+        
+        return ProductResponseDto.fromEntity(product);
+    }
+
+    /**
+     * Возвращает список товаров в виде ResponseDTO
+     */
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDto> findAllResponseDto(Pageable pageable) {
+        log.debug("Запрос списка товаров (ResponseDTO): страница={}, размер={}", pageable.getPageNumber(), pageable.getPageSize());
+        // Маппинг происходит внутри транзакции, чтобы ленивая загрузка отзывов сработала корректно при необходимости
+        return productRepository.findAll(pageable).map(this::mapToResponseDto);
+    }
+
+    // =======================
+    // СУЩЕСТВУЮЩИЕ МЕТОДЫ (Без изменений)
+    // =======================
 
     @Transactional(readOnly = true)
     public Page<ProductDto> findAllDto(Pageable pageable) {
@@ -49,14 +89,12 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductDto findByIdDto(Long id) {
         log.debug("Поиск товара по ID (DTO): {}", id);
-        // Для DTO нам нужно подгрузить отзывы, иначе mapToDto получит пустой список из-за LAZY
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> {
                     log.warn("Товар не найден с ID: {}", id);
                     return new ResourceNotFoundException("Product not found with id: " + id);
                 });
         
-        // Инициализируем коллекцию отзывов явно внутри транзакции
         if (product.getReviews() != null) {
             product.getReviews().size(); 
             log.debug("Инициализировано {} отзывов для товара {}", product.getReviews().size(), id);
@@ -87,8 +125,6 @@ public class ProductService {
         log.debug("Средний рейтинг товара {}: {}", productId, result);
         return result;
     }
-
-    // --- Internal Logic Methods (работают с Entity) ---
 
     @Transactional(readOnly = true)
     public Page<Product> findAll(Pageable pageable) {
@@ -154,7 +190,9 @@ public class ProductService {
         log.info("Товар ID={} успешно удален", id);
     }
 
-    // --- Mapper Helper ---
+    // =======================
+    // МАППЕРЫ (Без изменений + новый маппер)
+    // =======================
     
     private ProductDto mapToDto(Product product) {
         ProductDto dto = new ProductDto();
@@ -169,7 +207,6 @@ public class ProductService {
             dto.setCategoryName(product.getCategory().getName());
         }
         
-        // Безопасное извлечение ID отзывов
         if (product.getReviews() != null) {
             dto.setReviewIds(product.getReviews().stream()
                     .map(Review::getId)
@@ -179,5 +216,13 @@ public class ProductService {
         }
         
         return dto;
+    }
+
+    /**
+     * Новый приватный метод для маппинга в ResponseDTO
+     */
+    private ProductResponseDto mapToResponseDto(Product product) {
+        // Делегируем логику статическому методу в DTO классе
+        return ProductResponseDto.fromEntity(product);
     }
 }

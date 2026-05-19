@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="common-header(title)">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- CSRF Meta Tags (УДАЛЕНО, так как CSRF отключен в SecurityConfig) -->
+    <!-- Если вдруг включите CSRF обратно, раскомментируйте эти строки: -->
+    <!-- <meta name="_csrf" th:content="${_csrf.token}"/> -->
+    <!-- <meta name="_csrf_header" th:content="${_csrf.headerName}"/> -->
+
+    <title th:text="${title} ?: 'Bakery Shop'">Bakery Shop</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Кастомные стили (если есть) -->
+    <link th:href="@{/css/style.css}" rel="stylesheet">
+
+    <!-- jQuery (Обязательно до наших скриптов) -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Наш глобальный конфиг AJAX (если создан) -->
+    <script th:src="@{/js/app-config.js}"></script>
+</head>
+
+<body>
+<!-- Навигационная панель -->
+<nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+    <div class="container">
+        <!-- Логотип - ссылка на главную -->
+        <a class="navbar-brand fw-bold text-warning fs-3" th:href="@{/}">
+            GT <span class="text-white fs-6">Gluten Tag</span>
+        </a>
+
+        <!-- Кнопка гамбургер для мобильных -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Меню -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/products}">Каталог</a>
+                </li>
+                <!-- Можно добавить другие пункты, если нужны -->
+            </ul>
+
+            <!-- Правая часть: Корзина и Профиль -->
+            <ul class="navbar-nav d-flex flex-row align-items-center gap-3">
+                
+                <!-- Корзина -->
+                <li class="nav-item">
+                    <a class="nav-link position-relative" th:href="@{/cart}" title="Корзина">
+                        <i class="fas fa-shopping-cart fa-lg"></i>
+                        <!-- Бейдж количества товаров (обновляется через JS) -->
+                        <span id="cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none;">
+                            0
+                        </span>
+                    </a>
+                </li>
+
+                <!-- Секция авторизации -->
+                <li class="nav-item dropdown" sec:authorize="isAnonymous()">
+                    <a class="btn btn-outline-light btn-sm px-3" th:href="@{/auth/login}">
+                        <i class="fas fa-user me-1"></i> Войти
+                    </a>
+                </li>
+
+                <li class="nav-item dropdown" sec:authorize="isAuthenticated()">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user-circle me-1"></i>
+                        <span sec:authentication="name">User</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" th:href="@{/profile}"><i class="fas fa-id-card me-2"></i>Профиль</a></li>
+                        <li><a class="dropdown-item" th:href="@{/orders/my}"><i class="fas fa-box me-2"></i>Мои заказы</a></li>
+                        <li sec:authorize="hasRole('ADMIN')"><hr class="dropdown-divider"></li>
+                        <li sec:authorize="hasRole('ADMIN')"><a class="dropdown-item text-danger" th:href="@{/products/new}"><i class="fas fa-plus me-2"></i>Добавить товар</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" th:href="@{/logout}"><i class="fas fa-sign-out-alt me-2"></i>Выйти</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Контейнер для Toast уведомлений -->
+<div th:fragment="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="liveToast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">
+                Уведомление
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<script th:fragment="toast-script">
+    // Простая функция для показа уведомлений
+    window.showToast = function(message, type = 'primary') {
+        const toastEl = document.getElementById('liveToast');
+        const toastBody = document.getElementById('toast-message');
+        
+        if (toastEl && toastBody) {
+            toastBody.textContent = message;
+            // Меняем цвет в зависимости от типа
+            toastEl.className = 'toast align-items-center text-white border-0 bg-' + type;
+            
+            const toast = new bootstrap.Toast(toastEl);
+            toast.show();
+        } else {
+            alert(message); // Фоллбэк, если элемент не найден
+        }
+    };
+</script>
+
+</body>
+</html>

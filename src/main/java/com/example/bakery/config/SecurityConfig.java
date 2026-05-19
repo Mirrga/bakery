@@ -5,15 +5,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; // 1. Импорт аннотации
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableMethodSecurity // 2. Включаем поддержку @PreAuthorize, @PostAuthorize, @Secured
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final UserService userService;
+    
 
     public SecurityConfig(UserService userService) {
         this.userService = userService;
@@ -22,42 +23,38 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // ВРЕМЕННО ОТКЛЮЧАЕМ CSRF для форм (так как используем свой FormToken механизм)
             .csrf(csrf -> csrf.disable()) 
             
             .authorizeHttpRequests(auth -> auth
-                // 1. Статические ресурсы - должны быть ПЕРВЫМИ
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+                // 1. Статические ресурсы (СТРОГО ПЕРВЫМИ)
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico", "/webjars/**").permitAll()
                 
-                // 2. Страницы аутентификации и публичные API
-                .requestMatchers("/auth/login", "/auth/register").permitAll()
-                .requestMatchers("/auth/api/**").permitAll()
-                
-                // 3. Публичные страницы и API продуктов/категорий
-                .requestMatchers("/", "/index").permitAll()
+                // 2. Публичные страницы и API
+                .requestMatchers("/", "/index", "/home").permitAll()
+                .requestMatchers("/auth/login", "/auth/register", "/auth/api/**").permitAll()
                 .requestMatchers("/products", "/products/**").permitAll() 
                 .requestMatchers("/categories", "/categories/**").permitAll()
-                .requestMatchers("/api/products/**", "/api/categories/**").permitAll()
-                
-                // 4. Публичный доступ к отзывам (чтение), но создание требует авторизации (контролируется в контроллере/сервисе)
-                .requestMatchers("/api/reviews/**").permitAll() 
-
-                // 5. Корзина: доступна всем (гостям и пользователям) по sessionId
+                .requestMatchers("/api/products/**", "/api/categories/**", "/api/reviews/**").permitAll()
                 .requestMatchers("/cart/**", "/api/cart/**").permitAll()
 
-                // 6. Админка: Доступ ТОЛЬКО администраторам
+                // 3. Админка
                 .requestMatchers("/orders/admin/**", "/admin/**").hasRole("ADMIN")
+
+                // 4. ЗАЩИЩЕННЫЕ МАРШРУТЫ (Самые важные ставим ВЫШЕ общих)
+                // ВАЖНО: Правило для профиля ставим ДО любых правил для /orders
+                .requestMatchers("/profile", "/profile/**").authenticated()
                 
-                // 7. Личный кабинет и заказы: Требуется авторизация
-                .requestMatchers("/profile/**", "/orders/my", "/orders/create", "/users/api/me").authenticated()
+                // Правила для заказов
+                .requestMatchers("/orders/my", "/orders/create", "/orders/checkout").authenticated()
+                .requestMatchers("/orders/**").permitAll() // Остальные заказы (например, просмотр) публичны
                 
-                // 8. ВСЁ остальное требует входа
+                // 5. ВСЁ остальное требует входа
                 .anyRequest().authenticated()
             )
             
             .formLogin(form -> form
                 .loginPage("/auth/login")
-                .defaultSuccessUrl("/products", true) // Редирект после успешного входа
+                .defaultSuccessUrl("/products", true)
                 .failureUrl("/auth/login?error=true")
                 .permitAll()
             )
@@ -70,7 +67,7 @@ public class SecurityConfig {
                 .permitAll()
             )
             
-            .headers(headers -> headers.frameOptions(frame -> frame.disable())); // Для H2 console, если используется
+            .headers(headers -> headers.frameOptions(frame -> frame.disable())); 
 
         return http.build();
     }

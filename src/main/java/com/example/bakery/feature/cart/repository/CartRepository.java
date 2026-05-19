@@ -11,10 +11,14 @@ import java.util.Optional;
 @Repository
 public interface CartRepository extends JpaRepository<Cart, Long> {
     
-    // Стандартный метод (может вызвать LazyInitializationException при доступе к items вне транзакции)
+    // Стандартный метод (может вызвать LazyInitializationException при доступе к items вне транзакции
+    // Поиск корзины по sessionId
     Optional<Cart> findBySessionId(String sessionId);
 
-    // Оптимизированный метод: сразу загружает товары (CartItem)
+    // Поиск корзины по sessionId с предварительной загрузкой товаров (важно для merge)
     @Query("SELECT c FROM Cart c LEFT JOIN FETCH c.items WHERE c.sessionId = :sessionId")
     Optional<Cart> findBySessionIdWithItems(@Param("sessionId") String sessionId);
+
+    // === НОВЫЙ МЕТОД: Поиск корзины по userId ===
+    Optional<Cart> findByUserId(Long userId);
 }

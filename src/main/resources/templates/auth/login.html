@@ -3,99 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход</title>
-    <!-- Подключаем CSS через Thymeleaf -->
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <title>Вход в систему</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body { background-color: #f8f9fa; }
+        .login-card { max-width: 400px; margin: 50px auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background: white; }
+        .login-header { text-align: center; margin-bottom: 20px; color: #d63384; }
+    </style>
 </head>
 <body>
 
-<header>
-    <div class="container">
-        <nav>
-            <div class="logo">LOGO</div>
-            <ul>
-                <li><a th:href="@{/}">О нас</a></li>
-                <li><a th:href="@{/products}">Меню</a></li>
-                <li><a th:href="@{/auth/login}">Вход</a></li>
-            </ul>
-        </nav>
-    </div>
-</header>
+<div class="container">
+    <div class="login-card">
+        <h2 class="login-header"><i class="fas fa-bread-slice"></i> Bakery Login</h2>
 
-<div class="auth-page">
-    <div class="auth-box">
-        <h1>Вход</h1>
+        <!-- Блок ошибок аутентификации (Spring Security) -->
+        <div th:if="${param.error}" class="alert alert-danger" role="alert">
+            <i class="fas fa-exclamation-circle"></i> Неверный логин или пароль.
+        </div>
 
-        <!-- Блок ошибок (неверный пароль/логин) -->
-        <div th:if="${param.error}" class="alert alert-danger" style="color: red; margin-bottom: 15px;">
-            Неверное имя пользователя или пароль.
+        <!-- Блок успеха регистрации -->
+        <div th:if="${param.registered}" class="alert alert-success" role="alert">
+            <i class="fas fa-check-circle"></i> Регистрация успешна! Теперь войдите.
         </div>
         
-        <!-- Блок успеха (после регистрации) -->
-        <div th:if="${param.registered}" class="alert alert-success" style="color: green; margin-bottom: 15px;">
-            Регистрация успешна! Пожалуйста, войдите.
+        <!-- Блок выхода -->
+        <div th:if="${param.logout}" class="alert alert-info" role="alert">
+            <i class="fas fa-sign-out-alt"></i> Вы успешно вышли из системы.
         </div>
 
-        <!-- Форма для Spring Security -->
-        <!-- Важно: action должен вести на /login (стандартный обработчик Spring), method="post" -->
-        <form th:action="@{/login}" method="post">
-            
-            <!-- ВАЖНО: Строка с _csrf УДАЛЕНА, так как CSRF отключен в конфиге -->
-            
-            <!-- Наш кастомный токен (если планируется ручная проверка в контроллере/фильтре) -->
-            <!-- Если вход обрабатывается стандартным фильтром Spring Security, это поле можно игнорировать или убрать -->
-            <input type="hidden" name="formToken" th:value="${formToken}" />
+        <!-- Общая ошибка (например, от FormToken) -->
+        <div th:if="${error}" class="alert alert-warning" role="alert" th:text="${error}">
+            Ошибка
+        </div>
 
-            <!-- Поле Email (Spring Security ждет параметр 'username') -->
+        <form th:action="@{/auth/login}" method="post">
+            
+            <!-- ВАШ КАСТОМНЫЙ ТОКЕН (FormTokenService) -->
+            <input type="hidden" name="formToken" th:value="${formToken}">
+
             <div class="mb-3">
-                <label for="username" class="form-label">E-mail</label>
-                <input type="email" id="username" name="username" class="form-control" placeholder="Ваш e-mail" required autofocus>
+                <label for="username" class="form-label">Email или Логин</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="user@example.com">
+                </div>
             </div>
 
-            <!-- Поле Пароль -->
             <div class="mb-3">
                 <label for="password" class="form-label">Пароль</label>
-                <input type="password" id="password" name="password" class="form-control" placeholder="Пароль" required>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" class="form-control" id="password" name="password" required placeholder="******">
+                </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Войти
+                </button>
+            </div>
         </form>
 
-        <div class="auth-links" style="margin-top: 15px;">
-            <a th:href="@{/auth/forgot}">Забыли пароль?</a>
-            <br><br>
-            <a th:href="@{/auth/register}">Нет аккаунта? Зарегистрироваться</a>
+        <div class="text-center mt-3">
+            <small>Нет аккаунта? <a th:href="@{/auth/register}">Зарегистрироваться</a></small>
+        </div>
+        
+        <div class="text-center mt-2">
+            <small><a th:href="@{/products}">Вернуться в каталог</a></small>
         </div>
     </div>
 </div>
 
-<footer>
-    <div class="container footer-grid">
-        <div class="footer-brand">
-            <div class="footer-logo">GT</div>
-            <h2>Gluten Tag</h2>
-            <p>Готовы ответить там, где вам удобно.</p>
-            <div class="socials">
-                <a href="#">VK</a>
-                <a href="#">Telegram</a>
-            </div>
-        </div>
-        <div class="footer-info">
-            <h3>Контакты</h3>
-            <p>📍 Казань, ул. Татарстан 24</p>
-            <p>📞 +8 (800) 555-35-35</p>
-        </div>
-        <div class="footer-links">
-            <h3>Информация</h3>
-            <a href="#">Условия пользования</a>
-            <a href="#">Политика конфиденциальности</a>
-        </div>
-    </div>
-    <div class="footer-bottom">
-        <p>© 2026 Gluten Tag. Все права защищены.</p>
-    </div>
-</footer>
-
-<!-- Убрали старый скрипт, так как теперь форма работает через стандартный submit -->
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

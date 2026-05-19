@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -39,26 +40,35 @@ public class OrderController {
         Cart cart = cartService.getCartBySession(sessionId);
 
         if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            log.warn("Попытка оформления заказа с пустой корзиной (сессия: {})", sessionId);
-            model.addAttribute("error", "Ваша корзина пуста");
-            return "redirect:/cart";
+            return "redirect:/cart?empty=true";
         }
 
-        log.debug("Переход к оформлению заказа. Сессия: {}, товаров в корзине: {}", sessionId, cart.getItems().size());
+        // Принудительная инициализация ленивой загрузки
+        try {
+            cart.getItems().size(); 
+            for (var item : cart.getItems()) {
+                item.getProduct().getName(); 
+            }
+        } catch (Exception e) {
+            log.error("Ошибка инициализации данных корзины", e);
+            return "redirect:/cart?error=init";
+        }
+
+        // === РАССЧИТЫВАЕМ СУММУ В КОНТРОЛЛЕРЕ ===
+        BigDecimal totalAmount = cart.getItems().stream()
+            .map(item -> item.getProduct().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
         model.addAttribute("cart", cart);
+        model.addAttribute("totalAmount", totalAmount); // Передаем готовую сумму
+        // =========================================
+
         return "order/checkout";
     }
 
-    /**
-     * Оформление заказа (POST запрос)
-     */
     @PostMapping("/create")
-    public String createOrder(HttpSession session,
-                              Authentication authentication,
-                              RedirectAttributes redirectAttributes) {
+    public String createOrder(HttpSession session, Authentication authentication, RedirectAttributes redirectAttributes) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            log.warn("Неавторизованная попытка создания заказа");
-            redirectAttributes.addFlashAttribute("error", "Для оформления заказа необходимо войти в систему");
             return "redirect:/auth/login";
         }
 
@@ -66,13 +76,11 @@ public class OrderController {
         String sessionId = session.getId();
 
         try {
-            log.info("Начало оформления заказа для пользователя: {}", username);
             Order order = orderService.createOrderFromCart(sessionId, username);
-            log.info("Заказ №{} успешно оформлен пользователем: {}", order.getId(), username);
             redirectAttributes.addFlashAttribute("success", "Заказ №" + order.getId() + " успешно оформлен!");
             return "redirect:/orders/" + order.getId();
         } catch (RuntimeException e) {
-            log.error("Ошибка при создании заказа для пользователя {}: {}", username, e.getMessage(), e);
+            log.error("Ошибка создания заказа", e);
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/cart";
         }

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/common-header :: common-header(title='Gluten Tag | Главная')}">
+    <!-- Если фрагмента нет, раскомментируй базовые стили ниже -->
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+<!-- Навигация (если есть фрагмент) -->
+<header th:replace="~{fragments/header :: navbar}"></header>
+<!-- Если фрагмента navbar нет, можно вставить простой хедер вручную или убрать эту строку -->
+
+<main class="flex-grow-1">
+    
+    <!-- 1. HERO БАННЕР -->
+    <section class="hero-section text-white text-center py-5" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1509440159596-0249088772ff?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); background-size: cover; background-position: center;">
+        <div class="container py-5">
+            <h1 class="display-3 fw-bold mb-3">🥐 Gluten Tag</h1>
+            <p class="lead fs-4 mb-4">Свежая выпечка каждое утро по традиционным рецептам</p>
+            <a th:href="@{/products}" class="btn btn-warning btn-lg px-5 fw-bold text-uppercase">Перейти в меню</a>
+        </div>
+    </section>
+
+    <!-- 2. СЕКЦИЯ "СВЕЖАЯ ВЫПЕЧКА" (Товары из БД) -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="fw-bold">🔥 Хиты продаж</h2>
+                <p class="text-muted">Попробуйте нашу самую популярную выпечку</p>
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+                <!-- Цикл по товарам -->
+                <div class="col" th:each="product : ${freshProducts}">
+                    <div class="card h-100 shadow-sm border-0 transition-hover">
+                        <img th:src="${product.imageUrl != null ? product.imageUrl : 'https://via.placeholder.com/300x200?text=Bakery'}" 
+                             class="card-img-top" alt="Товар" style="height: 200px; object-fit: cover;">
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title fw-bold" th:text="${product.name}">Название товара</h5>
+                            <p class="card-text text-muted small flex-grow-1" th:text="${#strings.abbreviate(product.description, 80)}">Описание</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <span class="fs-5 fw-bold text-danger" th:text="${product.price} + ' ₽'">0 ₽</span>
+                                <a th:href="@{/products/{id}(id=${product.id})}" class="btn btn-outline-dark btn-sm">Подробнее</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Заглушка, если товаров нет -->
+                <div class="col-12 text-center py-5" th:if="${#lists.isEmpty(freshProducts)}">
+                    <p class="text-muted">Товары временно отсутствуют. Загляните позже!</p>
+                </div>
+            </div>
+
+            <div class="text-center mt-5">
+                <a th:href="@{/products}" class="btn btn-primary btn-lg">Весь каталог</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. ИНФОРМАЦИЯ О НАС (Как в макете) -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <img src="https://images.unsplash.com/photo-1556910103-1c02745a30bf?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80" 
+                         class="img-fluid rounded shadow" alt="Пекарня внутри">
+                </div>
+                <div class="col-md-6 ps-md-5">
+                    <h2 class="fw-bold mb-3">О пекарне Gluten Tag</h2>
+                    <p class="lead text-muted">Мы печем с любовью с 2026 года.</p>
+                    <p>Используем только натуральные ингредиенты: фермерское молоко, органическую муку и настоящие сливки. Никаких консервантов — только свежее и вкусное.</p>
+                    <ul class="list-unstyled mt-3">
+                        <li class="mb-2">✅ Свежие продукты каждое утро</li>
+                        <li class="mb-2">✅ Традиционные рецепты</li>
+                        <li class="mb-2">✅ Доставка по Казани</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- 4. ФУТЕР (Универсальный фрагмент) -->
+<header th:replace="~{fragments/footer :: footer}"></header>
+
+<!-- Скрипт для корзины (если нужен на главной) -->
+<script th:src="@{/js/app-config.js}"></script>
+<script th:src="@{/js/cart-service.js}"></script>
+
+<style>
+    .hover-warning:hover { color: #ffc107 !important; }
+    .transition-hover { transition: transform 0.3s ease; }
+    .transition-hover:hover { transform: translateY(-5px); }
+</style>
+
+</body>
+</html>

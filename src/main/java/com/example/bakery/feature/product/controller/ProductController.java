@@ -7,6 +7,8 @@ import com.example.bakery.feature.product.service.ProductService;
 import com.example.bakery.feature.review.dto.ReviewRequestDto;
 import com.example.bakery.feature.review.service.ReviewService;
 import com.example.bakery.global.exception.ResourceNotFoundException;
+import com.example.bakery.feature.product.entity.Category;
+import com.example.bakery.feature.product.repository.CategoryRepository;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +34,12 @@ public class ProductController {
 
     private final ProductService productService;
     private final ReviewService reviewService;
+    private final CategoryRepository categoryRepository;
 
-    public ProductController(ProductService productService, ReviewService reviewService) {
+    public ProductController(ProductService productService, ReviewService reviewService, CategoryRepository categoryRepository) {
         this.productService = productService;
         this.reviewService = reviewService;
+        this.categoryRepository = categoryRepository;
     }
 
     // =======================
@@ -82,6 +86,7 @@ public class ProductController {
     public String showCreateForm(Model model) {
         log.debug("Запрос формы создания нового товара (ADMIN)");
         model.addAttribute("productDto", new ProductRequestDto());
+        model.addAttribute("categories", categoryRepository.findAll()); // Передаем категории
         return "products/form";
     }
 
@@ -95,18 +100,17 @@ public class ProductController {
         Product product = productService.findById(id);
         ProductRequestDto dto = new ProductRequestDto();
         
-        // Маппинг только существующих полей
         dto.setName(product.getName());
         dto.setDescription(product.getDescription());
         dto.setPrice(product.getPrice());
         dto.setImageUrl(product.getImageUrl());
-        // Поля available и stockQuantity убираем, так как их нет в сущности
         if (product.getCategory() != null) {
             dto.setCategoryId(product.getCategory().getId());
         }
 
         model.addAttribute("productDto", dto);
         model.addAttribute("productId", id);
+        model.addAttribute("categories", categoryRepository.findAll()); // Передаем категории
         return "products/form";
     }
 

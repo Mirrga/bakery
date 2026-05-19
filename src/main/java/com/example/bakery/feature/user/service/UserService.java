@@ -68,11 +68,17 @@ public class UserService implements UserDetailsService {
      */
     @Transactional
     public UserDto registerUser(RegistrationRequest request, String token, String sessionId) {
-        log.info("Начало регистрации пользователя: {}", request.getEmail());
+        log.info("=== НАЧАЛО РЕГИСТРАЦИИ === Пользователь: {}, Email: {}", request.getUsername(), request.getEmail());
 
         // 1. Проверка и инвалидация токена
         log.debug("Валидация токена безопасности...");
-        formTokenService.validateAndInvalidateToken(token, sessionId);
+        boolean isTokenValid = formTokenService.validateAndInvalidateToken(token, sessionId);
+        
+        if (!isTokenValid) {
+            log.error("ОШИБКА: Токен безопасности невалиден или уже использован для сессии {}", sessionId);
+            throw new IllegalArgumentException("Неверный токен безопасности формы. Обновите страницу и попробуйте снова.");
+        }
+        log.debug("Токен успешно валидирован.");
 
         // 2. Валидация паролей
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -98,24 +104,35 @@ public class UserService implements UserDetailsService {
         user.setLastName(request.getLastName());
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        
+        String rawPassword = request.getPassword();
+        String encodedPassword = passwordEncoder.encode(rawPassword);
+        log.debug("Пароль захеширован: {} -> {}", rawPassword.length(), encodedPassword.length());
+        
+        user.setPassword(encodedPassword);
         user.setEnabled(true);
         user.setBonusBalance(BigDecimal.ZERO);
 
         // 6. Назначение роли
         Role userRole = roleRepository.findByName(UserRole.CUSTOMER)
                 .orElseThrow(() -> {
-                    log.error("Критическая ошибка: роль CUSTOMER не найдена в БД");
-                    return new RuntimeException("Роль CUSTOMER не найдена в БД. Запустите скрипт инициализации.");
+                    log.error("=== КРИТИЧЕСКАЯ ОШИБКА === Роль CUSTOMER не найдена в БД!");
+                    return new RuntimeException("Роль CUSTOMER не найдена в БД. Запустите скрипт инициализации или добавьте роль вручную.");
                 });
         
+        log.debug("Роль найдена: {}", userRole.getName());
         user.setRoles(new HashSet<>(Collections.singletonList(userRole)));
 
         // 7. Сохранение
-        User savedUser = userRepository.save(user);
-        log.info("Пользователь успешно зарегистрирован: {} (ID={})", savedUser.getEmail(), savedUser.getId());
-        
-        return convertToDto(savedUser);
+        log.debug("Сохранение пользователя в БД...");
+        try {
+            User savedUser = userRepository.save(user);
+            log.info("=== УСПЕХ === Пользователь успешно зарегистрирован: {} (ID={})", savedUser.getEmail(), savedUser.getId());
+            return convertToDto(savedUser);
+        } catch (Exception e) {
+            log.error("=== ОШИБКА ПРИ СОХРАНЕНИИ === Не удалось сохранить пользователя в БД", e);
+            throw e; // Пробрасываем исключение дальше, чтобы транзакция откатилась
+        }
     }
 
     public List<UserDto> getAllUsers() {

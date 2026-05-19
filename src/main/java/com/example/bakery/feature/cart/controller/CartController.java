@@ -4,12 +4,16 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.bakery.feature.cart.dto.CartDto;
 import com.example.bakery.feature.cart.service.CartService;
+import com.example.bakery.feature.user.service.UserService;
+import com.example.bakery.feature.user.dto.UserDto;
 
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
@@ -22,6 +26,27 @@ public class CartController {
     private static final Logger log = LoggerFactory.getLogger(CartController.class);
 
     private final CartService cartService;
+    private final UserService userService; // Внедряем сервис пользователей
+
+    /**
+     * Получает ID текущего авторизованного пользователя.
+     * Если пользователь не авторизован (гость), возвращает null.
+     */
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return null;
+        }
+        
+        String username = authentication.getName();
+        try {
+            UserDto user = userService.getUserByUsername(username);
+            return user.getId();
+        } catch (Exception e) {
+            log.warn("Не удалось получить ID пользователя по имени {}: {}", username, e.getMessage());
+            return null;
+        }
+    }
 
     // --- MVC Endpoints (возвращают HTML страницы) ---
 
@@ -31,10 +56,12 @@ public class CartController {
     @GetMapping
     public String showCart(HttpSession session, Model model) {
         String sessionId = session.getId();
-        log.debug("Запрос просмотра корзины для сессии: {}", sessionId);
+        Long userId = getCurrentUserId();
         
-        // Используем DTO для безопасной передачи данных в шаблон
-        CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+        log.debug("Запрос просмотра корзины. Session: {}, User: {}", sessionId, userId != null ? userId : "Guest");
+        
+        // Передаем userId в сервис для получения правильной корзины
+        CartDto cartDto = cartService.getCartDtoBySession(sessionId, userId);
         
         log.info("Корзина отображена. Товаров: {}, Сумма: {}", 
                 cartDto.getTotalItems(), cartDto.getTotalAmount());
@@ -56,13 +83,16 @@ public class CartController {
             HttpSession session) {
         
         String sessionId = session.getId();
-        log.info("Попытка добавить товар в корзину. Session: {}, ProductId: {}, Quantity: {}", 
-                sessionId, productId, quantity);
+        Long userId = getCurrentUserId();
+        
+        log.info("Попытка добавить товар в корзину. Session: {}, User: {}, ProductId: {}, Quantity: {}", 
+                sessionId, userId != null ? userId : "Guest", productId, quantity);
         
         try {
-            cartService.addToCart(sessionId, productId, quantity);
+            // Передаем userId в сервис
+            cartService.addToCart(sessionId, productId, quantity, userId);
             
-            CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+            CartDto cartDto = cartService.getCartDtoBySession(sessionId, userId);
             
             log.debug("Товар успешно добавлен. Всего товаров: {}, Сумма: {}", 
                     cartDto.getTotalItems(), cartDto.getTotalAmount());
@@ -99,14 +129,16 @@ public class CartController {
             HttpSession session) {
         
         String sessionId = session.getId();
-        log.info("Обновление количества товара. Session: {}, ItemId: {}, NewQuantity: {}", 
-                sessionId, itemId, quantity);
+        Long userId = getCurrentUserId();
+        
+        log.info("Обновление количества товара. Session: {}, User: {}, ItemId: {}, NewQuantity: {}", 
+                sessionId, userId != null ? userId : "Guest", itemId, quantity);
         
         try {
-            // Если quantity <= 0, сервис автоматически удалит товар
-            cartService.updateQuantity(sessionId, itemId, quantity);
+            // Передаем userId в сервис
+            cartService.updateQuantity(sessionId, itemId, quantity, userId);
             
-            CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+            CartDto cartDto = cartService.getCartDtoBySession(sessionId, userId);
             
             log.debug("Количество обновлено. Всего товаров: {}, Сумма: {}", 
                     cartDto.getTotalItems(), cartDto.getTotalAmount());
@@ -142,14 +174,17 @@ public class CartController {
             HttpSession session) {
         
         String sessionId = session.getId();
-        log.info("Удаление товара из корзины. Session: {}, ItemId: {}", sessionId, itemId);
+        Long userId = getCurrentUserId();
+        
+        log.info("Удаление товара из корзины. Session: {}, User: {}, ItemId: {}", 
+                sessionId, userId != null ? userId : "Guest", itemId);
         
         try {
-            cartService.removeFromCart(sessionId, itemId);
+            // Передаем userId в сервис
+            cartService.removeFromCart(sessionId, itemId, userId);
             
-            CartDto cartDto = cartService.getCartDtoBySession(sessionId);
+            CartDto cartDto = cartService.getCartDtoBySession(sessionId, userId);
             
-            // Если корзина пуста, можно вернуть редирект или просто обновить интерфейс
             boolean isEmpty = cartDto.getItems().isEmpty();
             
             if (isEmpty) {
@@ -179,10 +214,14 @@ public class CartController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> clearCart(HttpSession session) {
         String sessionId = session.getId();
-        log.info("Очистка всей корзины. Session: {}", sessionId);
+        Long userId = getCurrentUserId();
+        
+        log.info("Очистка всей корзины. Session: {}, User: {}", 
+                sessionId, userId != null ? userId : "Guest");
         
         try {
-            cartService.clearCart(sessionId);
+            // Передаем userId в сервис
+            cartService.clearCart(sessionId, userId);
             
             log.info("Корзина успешно очищена");
             
