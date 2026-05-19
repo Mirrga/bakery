@@ -1,196 +1,156 @@
-$(document).ready(function() {
-    console.log("🛒 Cart Service Initialized");
+// Функция добавления товара в корзину
+function addToCart(productId, quantity = 1) {
+    const url = `/cart/add?productId=${productId}&quantity=${quantity}`;
+    
+    // Находим кнопку, по которой кликнули (для анимации)
+    const button = document.querySelector(`button[data-id="${productId}"]`) || 
+                   document.querySelector(`button[onclick*="addToCart(${productId})"]`);
+    
+    if (button) {
+        // Визуальный эффект нажатия
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Добавлено';
+        button.classList.add('btn-success');
+        button.classList.remove('btn-primary', 'btn-outline-dark');
+        button.disabled = true;
 
-    // --- 1. Обработчики кнопок изменения количества (+/-) ---
-    $(document).on('click', '.btn-qty-change', function(e) {
-        e.preventDefault();
-        let btn = $(this);
-        let itemId = btn.data('item-id');
-        let newQty = btn.data('quantity');
-
-        if (newQty < 0) return; // Защита от отрицательных чисел
-
-        updateCartItem(itemId, newQty);
-    });
-
-    // --- 2. Обработчик кнопки удаления товара ---
-    $(document).on('click', '.btn-remove-item', function(e) {
-        e.preventDefault();
-        let btn = $(this);
-        let itemId = btn.data('item-id');
-
-        if(confirm('Вы уверены, что хотите удалить этот товар?')) {
-            removeCartItem(itemId);
-        }
-    });
-
-    // --- 3. Обработчик очистки всей корзины ---
-    $('#btn-clear-cart').click(function(e) {
-        e.preventDefault();
-        if(confirm('Вы уверены, что хотите очистить всю корзину?')) {
-            clearCart();
-        }
-    });
-
-    // ================= ФУНКЦИИ API =================
-
-    window.updateCartItem = function(itemId, quantity) {
-        console.log(`Updating item ${itemId} to qty ${quantity}`);
-        
-        // Блокируем интерфейс на время запроса
-        toggleLoading(true);
-
-        $.post('/cart/update', {
-            itemId: itemId,
-            quantity: quantity
-        })
-        .done(function(response) {
-            if (response.success) {
-                updateRowVisuals(itemId, quantity, response.totalAmount);
-                showToast("Количество обновлено", "success");
-                
-                // Если количество стало 0 (редкий кейс через API), удаляем строку
-                if (quantity === 0) {
-                    $(`#cart-item-row-${itemId}`).fadeOut(300, function() { $(this).remove(); checkEmpty(); });
-                }
-            } else {
-                showToast(response.message || "Ошибка обновления", "danger");
-            }
-        })
-        .fail(function(xhr) {
-            console.error("Error updating cart", xhr);
-            showToast("Не удалось обновить количество", "danger");
-        })
-        .always(function() {
-            toggleLoading(false);
-        });
-    };
-
-    window.removeCartItem = function(itemId) {
-        console.log(`Removing item ${itemId}`);
-        toggleLoading(true);
-
-        $.post(`/cart/remove/${itemId}`)
-        .done(function(response) {
-            if (response.success) {
-                $(`#cart-item-row-${itemId}`).fadeOut(300, function() {
-                    $(this).remove();
-                    checkEmpty();
-                });
-                
-                // Обновляем итоговую сумму в футере
-                $('#cart-total-amount').text(formatMoney(response.totalAmount));
-                
-                if (response.isEmpty) {
-                    showToast("Корзина пуста", "info");
-                } else {
-                    showToast("Товар удален", "success");
-                }
-            } else {
-                showToast(response.message || "Ошибка удаления", "danger");
-            }
-        })
-        .fail(function(xhr) {
-            console.error("Error removing item", xhr);
-            showToast("Не удалось удалить товар", "danger");
-        })
-        .always(function() {
-            toggleLoading(false);
-        });
-    };
-
-    window.clearCart = function() {
-        console.log("Clearing cart");
-        toggleLoading(true);
-
-        $.post('/cart/clear')
-        .done(function(response) {
-            if (response.success) {
-                // Скрываем таблицу, показываем сообщение "пусто"
-                $('.card').fadeOut(300, function() {
-                    $('#cart-empty-message').fadeIn();
-                });
-                $('#cart-total-amount').text("0 ₽");
-                showToast("Корзина очищена", "info");
-            } else {
-                showToast("Ошибка при очистке", "danger");
-            }
-        })
-        .fail(function(xhr) {
-            console.error("Error clearing cart", xhr);
-            showToast("Не удалось очистить корзину", "danger");
-        })
-        .always(function() {
-            toggleLoading(false);
-        });
-    };
-
-    // ================= ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =================
-
-    function updateRowVisuals(itemId, quantity, newTotalAmount) {
-        let row = $(`#cart-item-row-${itemId}`);
-        let price = parseFloat(row.data('price'));
-        let subtotal = price * quantity;
-
-        // Обновляем инпут
-        row.find('.item-qty-input').val(quantity);
-        
-        // Обновляем сумму строки
-        row.find('.item-subtotal').text(formatMoney(subtotal));
-        
-        // Обновляем общую сумму
-        $('#cart-total-amount').text(formatMoney(newTotalAmount));
-        
-        // Обновляем data-атрибуты кнопок +/-
-        row.find('.btn-qty-change').each(function() {
-            let btn = $(this);
-            let isPlus = btn.find('.fa-plus').length > 0;
-            if (isPlus) {
-                btn.data('quantity', quantity + 1);
-            } else {
-                btn.data('quantity', quantity - 1);
-            }
-        });
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-primary', 'btn-outline-dark');
+            button.disabled = false;
+        }, 1500);
     }
 
-    function checkEmpty() {
-        if ($('.cart-item-row').length === 0) {
-            $('.card').fadeOut(300, function() {
-                $('#cart-empty-message').fadeIn();
-                $('#cart-actions').hide(); // Скрываем кнопки действий
-            });
+    // Отправка запроса на сервер
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
         }
-    }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Ошибка сети или сервера');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Товар добавлен:', data.message);
+            
+            // 1. Обновляем счетчик в хедере
+            if (typeof updateCartBadge === 'function') {
+                updateCartBadge(data.totalItems);
+            }
 
-    function formatMoney(amount) {
-        // Простое форматирование числа с пробелами и рублем
-        return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB' }).format(amount);
-    }
-
-    function toggleLoading(isLoading) {
-        if (isLoading) {
-            $('body').css('cursor', 'wait');
-            $('.btn-qty-change, .btn-remove-item, #btn-clear-cart').prop('disabled', true);
+            // 2. Показываем уведомление (Toast)
+            showToast(data.message, 'success');
         } else {
-            $('body').css('cursor', 'default');
-            $('.btn-qty-change, .btn-remove-item, #btn-clear-cart').prop('disabled', false);
+            showToast(data.message || 'Ошибка при добавлении', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        showToast('Произошла ошибка при добавлении товара', 'error');
+        
+        // Возвращаем кнопку в исходное состояние при ошибке
+        if (button) {
+            button.innerHTML = '<i class="fas fa-plus"></i> В корзину';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-primary', 'btn-outline-dark');
+            button.disabled = false;
+        }
+    });
+}
+
+// Функция обновления счетчика корзины (вызывается из контроллера или после добавления)
+function updateCartBadge(count) {
+    const badge = document.getElementById('cart-badge');
+    if (badge) {
+        badge.innerText = count;
+        if (count > 0) {
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
         }
     }
+}
 
-    function showToast(message, type = 'info') {
-        const toastEl = document.getElementById('cartToast');
-        const toastBody = document.getElementById('cart-toast-message');
-        const toastHeaderIcon = toastEl.querySelector('.toast-header i');
-        
-        toastBody.textContent = message;
-        
-        // Меняем цвет иконки в зависимости от типа
-        toastHeaderIcon.className = ''; 
-        if (type === 'success') toastHeaderIcon.classList.add('fas', 'fa-check-circle', 'me-2', 'text-success');
-        else if (type === 'danger') toastHeaderIcon.classList.add('fas', 'fa-exclamation-triangle', 'me-2', 'text-danger');
-        else toastHeaderIcon.classList.add('fas', 'fa-info-circle', 'me-2', 'text-primary');
-
-        const toast = new bootstrap.Toast(toastEl);
-        toast.show();
+// Функция показа всплывающего уведомления (Toast)
+function showToast(message, type = 'success') {
+    // Создаем элемент Toast, если его нет
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '11';
+        document.body.appendChild(toastContainer);
     }
-});
+
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+    const icon = type === 'success' ? '<i class="fas fa-check-circle me-2"></i>' : '<i class="fas fa-exclamation-circle me-2"></i>';
+
+    const toastHtml = `
+        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${icon}${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    // Инициализируем и показываем Toast через Bootstrap
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+    toast.show();
+
+    // Удаляем элемент из DOM после скрытия
+    toastElement.addEventListener('hidden.bs.toast', function () {
+        toastElement.remove();
+    });
+}
+
+// Функции для страницы корзины (удаление, очистка)
+function removeCartItem(itemId) {
+    if(confirm('Вы уверены, что хотите удалить этот товар?')) {
+        fetch(`/cart/remove/${itemId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    location.reload(); // Перезагружаем страницу корзины
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            });
+    }
+}
+
+function clearCart() {
+    if(confirm('Очистить всю корзину?')) {
+        fetch('/cart/clear', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    location.reload();
+                }
+            });
+    }
+}
+
+function updateCartItem(itemId, newQuantity) {
+    if (newQuantity < 1) return;
+    fetch(`/cart/update?itemId=${itemId}&quantity=${newQuantity}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                location.reload();
+            }
+        });
+}

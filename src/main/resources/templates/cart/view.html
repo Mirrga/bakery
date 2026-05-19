@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru" xmlns:th="http://www.thymeleaf.org" 
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{fragments/common-header :: common-header(title='Корзина')}">
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:replace="~{fragments/common-header :: common-header(title='Корзина')}"></th:block>
 </head>
 <body class="d-flex flex-column min-vh-100 bg-light">
 
-<!-- 1. ПОДКЛЮЧАЕМ УНИВЕРСАЛЬНЫЙ ХЕДЕР -->
 <header th:replace="~{fragments/header :: navbar}"></header>
 
 <main class="flex-grow-1 py-5">
@@ -20,7 +19,7 @@
             <a th:href="@{/products}" class="btn btn-primary mt-3 px-4">Перейти в каталог</a>
         </div>
 
-        <!-- Таблица товаров (если корзина не пуста) -->
+        <!-- Таблица товаров -->
         <div th:unless="${cart.items == null || cart.items.empty}" class="card shadow-sm border-0">
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -35,9 +34,14 @@
                             </tr>
                         </thead>
                         <tbody id="cart-table-body">
-                            <tr th:each="item : ${cart.items}" th:id="'cart-item-' + ${item.id}" th:data-price="${item.price}">
+                            <!-- Важно: используем item.id для удаления, а не productId -->
+                            <tr th:each="item : ${cart.items}" 
+                                th:id="'cart-item-row-' + ${item.id}" 
+                                class="cart-item-row">
+                                
                                 <td class="ps-4">
                                     <div class="d-flex align-items-center">
+                                        <!-- Используем поля DTO: productImageUrl, productName -->
                                         <img th:src="${item.productImageUrl != null ? item.productImageUrl : 'https://via.placeholder.com/60'}" 
                                              class="rounded me-3" alt="Product" style="width: 60px; height: 60px; object-fit: cover;">
                                         <span class="fw-bold" th:text="${item.productName}">Название товара</span>
@@ -46,21 +50,24 @@
                                 <td class="text-center" th:text="${item.price} + ' ₽'">0 ₽</td>
                                 <td class="text-center">
                                     <div class="input-group input-group-sm" style="max-width: 130px; margin: 0 auto;">
-                                        <button class="btn btn-outline-secondary" type="button" 
-                                                th:onclick="'updateCartItem(' + ${item.id} + ', ' + (${item.quantity} - 1) + ')'">
+                                        <button class="btn btn-outline-secondary btn-update-qty" type="button" 
+                                                th:data-item-id="${item.id}" 
+                                                th:data-new-qty="${item.quantity - 1}">
                                             <i class="fas fa-minus"></i>
                                         </button>
                                         <input type="text" class="form-control text-center" th:value="${item.quantity}" readonly>
-                                        <button class="btn btn-outline-secondary" type="button" 
-                                                th:onclick="'updateCartItem(' + ${item.id} + ', ' + (${item.quantity} + 1) + ')'">
+                                        <button class="btn btn-outline-secondary btn-update-qty" type="button" 
+                                                th:data-item-id="${item.id}" 
+                                                th:data-new-qty="${item.quantity + 1}">
                                             <i class="fas fa-plus"></i>
                                         </button>
                                     </div>
                                 </td>
                                 <td class="text-end pe-4 fw-bold" th:text="${item.subtotal} + ' ₽'">0 ₽</td>
                                 <td class="text-end pe-4">
-                                    <button class="btn btn-sm btn-outline-danger" 
-                                            th:onclick="'removeCartItem(' + ${item.id} + ')'">
+                                    <!-- Кнопка удаления использует item.id -->
+                                    <button class="btn btn-sm btn-outline-danger btn-remove-item" 
+                                            th:data-item-id="${item.id}">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </td>
@@ -77,7 +84,7 @@
 
                 <!-- Кнопки действий -->
                 <div class="p-4 d-flex justify-content-between align-items-center border-top">
-                    <button class="btn btn-outline-danger" onclick="clearCart()">
+                    <button class="btn btn-outline-danger" id="btn-clear-cart">
                         <i class="fas fa-trash me-2"></i>Очистить корзину
                     </button>
                     <div>
@@ -92,22 +99,170 @@
     </div>
 </main>
 
-<!-- 2. ПОДКЛЮЧАЕМ ФУТЕР -->
-<div th:replace="~{fragments/footer :: footer}"></div>
+<footer th:replace="~{fragments/footer :: footer}"></footer>
+
+<!-- Toast уведомление -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="liveToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message">Сообщение</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
 
 <!-- Скрипты -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script th:src="@{/js/app-config.js}"></script>
-<script th:src="@{/js/cart-service.js}"></script>
 
 <script>
-    $(document).ready(function() {
-        // Обновляем бейдж корзины при загрузке
-        if (typeof updateCartBadge === 'function') {
-            updateCartBadge();
+$(document).ready(function() {
+    
+    // Функция показа уведомления
+    function showToast(message, isError) {
+        const toastEl = document.getElementById('liveToast');
+        const toastBody = document.getElementById('toast-message');
+        if (!toastEl) return;
+
+        toastBody.textContent = message;
+        if (isError) {
+            toastEl.classList.remove('bg-success');
+            toastEl.classList.add('bg-danger');
+        } else {
+            toastEl.classList.remove('bg-danger');
+            toastEl.classList.add('bg-success');
         }
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+
+    // Обновление счетчика в хедере (если есть элемент с id cart-badge)
+    function updateCartBadge(totalItems) {
+        const badge = $('#cart-badge');
+        if (badge.length > 0) {
+            if (totalItems > 0) {
+                badge.text(totalItems).show();
+            } else {
+                badge.hide();
+            }
+        }
+    }
+
+    // --- УДАЛЕНИЕ ТОВАРА ---
+    $(document).on('click', '.btn-remove-item', function() {
+        const btn = $(this);
+        const itemId = btn.data('item-id');
+        const row = $('#cart-item-row-' + itemId);
+
+        if (!confirm('Вы уверены, что хотите удалить этот товар?')) return;
+
+        // Визуальная блокировка
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: '/cart/remove/' + itemId, // Путь должен совпадать с @PostMapping в контроллере
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    // Анимация исчезновения строки
+                    row.fadeOut(300, function() {
+                        $(this).remove();
+                        // Проверка: если строк не осталось, показать сообщение "Корзина пуста"
+                        if ($('.cart-item-row').length === 0) {
+                            location.reload(); // Проще перезагрузить, чтобы показать пустое состояние
+                        } else {
+                            // Обновляем итоги
+                            $('#cart-total-amount').text(response.totalAmount + ' ₽');
+                            updateCartBadge(response.totalItems);
+                            showToast('Товар удален из корзины');
+                        }
+                    });
+                } else {
+                    showToast(response.message || 'Ошибка удаления', true);
+                    btn.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
+                }
+            },
+            error: function(xhr) {
+                console.error(xhr);
+                showToast('Ошибка при удалении товара', true);
+                btn.prop('disabled', false).html('<i class="fas fa-trash-alt"></i>');
+            }
+        });
     });
+
+    // --- ИЗМЕНЕНИЕ КОЛИЧЕСТВА ---
+    $(document).on('click', '.btn-update-qty', function() {
+        const btn = $(this);
+        const itemId = btn.data('item-id');
+        const newQty = btn.data('new-qty');
+        const row = $('#cart-item-row-' + itemId);
+        const input = row.find('input[type="text"]');
+
+        if (newQty <= 0) {
+            // Если количество 0 или меньше, предлагаем удалить
+            if(confirm('Удалить товар из корзины?')) {
+                row.find('.btn-remove-item').click();
+            }
+            return;
+        }
+
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: '/cart/update',
+            type: 'POST',
+            data: { itemId: itemId, quantity: newQty },
+            success: function(response) {
+                if (response.success) {
+                    input.val(newQty);
+                    // Обновляем сумму строки (нужно пересчитать на клиенте или взять из ответа, если бэкенд возвращает)
+                    // Для простоты обновим общую сумму и пересчитаем строку локально
+                    const priceText = row.find('td:nth-child(2)').text().replace(' ₽', '').trim();
+                    const price = parseFloat(priceText);
+                    const subtotal = price * newQty;
+                    row.find('td:nth-child(4)').text(subtotal + ' ₽');
+                    
+                    $('#cart-total-amount').text(response.totalAmount + ' ₽');
+                    updateCartBadge(response.totalItems);
+                    
+                    // Возвращаем кнопки в исходное состояние
+                    row.find('.btn-update-qty').prop('disabled', false)
+                        .html(function() {
+                            return $(this).find('i').hasClass('fa-minus') ? '<i class="fas fa-minus"></i>' : '<i class="fas fa-plus"></i>';
+                        });
+                } else {
+                    showToast(response.message || 'Ошибка обновления', true);
+                    btn.prop('disabled', false).html('<i class="fas fa-minus"></i>'); // упрощенно
+                }
+            },
+            error: function(xhr) {
+                console.error(xhr);
+                showToast('Ошибка сети', true);
+                btn.prop('disabled', false).html('<i class="fas fa-minus"></i>');
+            }
+        });
+    });
+
+    // --- ОЧИСТКА ВСЕЙ КОРЗИНЫ ---
+    $('#btn-clear-cart').click(function() {
+        if (!confirm('Вы уверены, что хотите очистить всю корзину?')) return;
+
+        $.ajax({
+            url: '/cart/clear',
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    showToast('Не удалось очистить корзину', true);
+                }
+            },
+            error: function() {
+                showToast('Ошибка сервера', true);
+            }
+        });
+    });
+});
 </script>
 
 </body>

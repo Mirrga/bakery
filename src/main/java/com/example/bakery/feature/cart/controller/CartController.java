@@ -26,24 +26,30 @@ public class CartController {
     private static final Logger log = LoggerFactory.getLogger(CartController.class);
 
     private final CartService cartService;
-    private final UserService userService; // Внедряем сервис пользователей
+    private final UserService userService;
 
     /**
-     * Получает ID текущего авторизованного пользователя.
-     * Если пользователь не авторизован (гость), возвращает null.
+     * Вспомогательный метод для получения ID текущего авторизованного пользователя.
+     * Возвращает null, если пользователь не авторизован (гость).
      */
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+        
+        if (authentication == null || !authentication.isAuthenticated()) {
             return null;
         }
-        
+
+        Object principal = authentication.getPrincipal();
+        if ("anonymousUser".equals(principal)) {
+            return null;
+        }
+
         String username = authentication.getName();
         try {
             UserDto user = userService.getUserByUsername(username);
             return user.getId();
         } catch (Exception e) {
-            log.warn("Не удалось получить ID пользователя по имени {}: {}", username, e.getMessage());
+            log.warn("Не удалось получить ID пользователя по имени '{}': {}", username, e.getMessage());
             return null;
         }
     }
@@ -60,7 +66,7 @@ public class CartController {
         
         log.debug("Запрос просмотра корзины. Session: {}, User: {}", sessionId, userId != null ? userId : "Guest");
         
-        // Передаем userId в сервис для получения правильной корзины
+        // Передаем userId в сервис. Если пользователь авторизован, сервис найдет его постоянную корзину.
         CartDto cartDto = cartService.getCartDtoBySession(sessionId, userId);
         
         log.info("Корзина отображена. Товаров: {}, Сумма: {}", 
@@ -89,9 +95,10 @@ public class CartController {
                 sessionId, userId != null ? userId : "Guest", productId, quantity);
         
         try {
-            // Передаем userId в сервис
+            // Передаем userId в сервис для привязки товара к корзине пользователя
             cartService.addToCart(sessionId, productId, quantity, userId);
             
+            // Получаем актуальное состояние корзины
             CartDto cartDto = cartService.getCartDtoBySession(sessionId, userId);
             
             log.debug("Товар успешно добавлен. Всего товаров: {}, Сумма: {}", 
